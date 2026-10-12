@@ -68,21 +68,24 @@ export default function ProductPage() {
             {product.name}
           </h1>
 
-          <div className="mt-4 flex items-center gap-3">
-            <span className="text-2xl font-bold text-red-500">
-              ₹{product.price.toLocaleString("en-IN")}
-            </span>
-            {product.id === "sports-bag" && (
-              <>
-                <span className="text-gray-500 line-through">
-                  ₹599
-                </span>
-                <span className="rounded bg-red-600 px-2 py-1 text-xs font-bold">
-                  SAVE ₹100
-                </span>
-              </>
-            )}
-          </div>
+          ```tsx
+<div className="mt-4 flex items-center gap-3">
+  <span className="text-2xl font-bold text-red-500">
+    ₹{product.price.toLocaleString("en-IN")}
+  </span>
+
+  {product.originalPrice && (
+    <>
+      <span className="text-gray-500 line-through">
+        ₹{product.originalPrice.toLocaleString("en-IN")}
+      </span>
+      <span className="rounded bg-red-600 px-2 py-1 text-xs font-bold">
+        SAVE ₹{(product.originalPrice - product.price).toLocaleString("en-IN")}
+      </span>
+    </>
+  )}
+</div>
+```
 
           <p className="mt-6 leading-7 text-gray-400">
             {product.description}

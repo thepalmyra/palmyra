@@ -1,7 +1,9 @@
+```ts
 export type Product = {
   id: string;
   name: string;
   price: number;
+  originalPrice?: number;
   category: string;
   description: string;
   image: string;
@@ -18,38 +20,51 @@ export const products: Product[] = [
     price: 499,
     category: "Accessories",
     description:
-      "A versatile sports cap for everyday wear and outdoor activities.",
-    image:
-      "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=900&q=85",
+      "A versatile Palmyra sports cap for everyday wear, training and outdoor activities.",
+    image: "/products/cap-black.jpg",
     images: [
-      "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=900&q=85",
+      "/products/cap-black.jpg",
+      "/products/cap-green.jpg",
+      "/products/cap-maroon.jpg",
+      "/products/cap-navy-blue.jpg",
+      "/products/cap-red.jpg",
+      "/products/cap-tan.jpg",
     ],
     sizes: ["One Size"],
-    colors: ["Black", "White"],
+    colors: ["Black", "Green", "Maroon", "Navy Blue", "Red", "Tan"],
+    colorImages: {
+      Black: "/products/cap-black.jpg",
+      Green: "/products/cap-green.jpg",
+      Maroon: "/products/cap-maroon.jpg",
+      "Navy Blue": "/products/cap-navy-blue.jpg",
+      Red: "/products/cap-red.jpg",
+      Tan: "/products/cap-tan.jpg",
+    },
   },
   {
     id: "sports-bag",
     name: "Palmyra Drawstring Bag",
     price: 499,
+    originalPrice: 599,
     category: "Accessories",
     description:
-  "Carry your essentials in the Palmyra Drawstring Bag. A lightweight, versatile bag available in five colors.",
-   image: "/products/green.jpg",
-   images: [
-  "/products/green.jpg",
-  "/products/tan.jpg",
-  "/products/navy-blue.jpg",
-  "/products/maroon.jpg",
-  "/products/black.jpg",
+      "Carry your essentials in the Palmyra Drawstring Bag. A lightweight, versatile bag available in five colors.",
+    image: "/products/bag-black.jpg",
+    images: [
+      "/products/bag-black.jpg",
+      "/products/bag-green.jpg",
+      "/products/bag-maroon.jpg",
+      "/products/bag-navy-blue.jpg",
+      "/products/bag-tan.jpg",
     ],
-   sizes: ["One Size"],
-   colors: ["Green", "Tan", "Navy Blue", "Maroon", "Black"],
-   colorImages: {
-  Green: "/products/green.jpg",
-  Tan: "/products/tan.jpg",
-  "Navy Blue": "/products/navy-blue.jpg",
-  Maroon: "/products/maroon.jpg",
-   Black: "/products/black.jpg",
+    sizes: ["One Size"],
+    colors: ["Black", "Green", "Maroon", "Navy Blue", "Tan"],
+    colorImages: {
+      Black: "/products/bag-black.jpg",
+      Green: "/products/bag-green.jpg",
+      Maroon: "/products/bag-maroon.jpg",
+      "Navy Blue": "/products/bag-navy-blue.jpg",
+      Tan: "/products/bag-tan.jpg",
     },
   },
   {
@@ -83,3 +98,4 @@ export const products: Product[] = [
     colors: ["Black"],
   },
 ];
+```
