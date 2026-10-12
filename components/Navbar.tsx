@@ -84,6 +84,10 @@ export default function Navbar() {
       Profile
     </Link>
 
+    <Link href="/cart" className="text-white hover:text-red-500">
+      Cart
+    </Link>
+
     <Link href="/about" className="text-white hover:text-red-500">
       About
     </Link>

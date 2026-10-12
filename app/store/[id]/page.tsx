@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { products } from "@/lib/products";
+import { useCart } from "@/components/CartContext";
 
 const colorStyles: Record<string, string> = {
   Black: "#171717",
@@ -19,6 +20,8 @@ const colorStyles: Record<string, string> = {
 };
 
 export default function ProductPage() {
+      const { addItem } = useCart();
+
   const params = useParams<{ id: string }>();
   const product = products.find((item) => item.id === params.id);
 
@@ -162,6 +165,46 @@ export default function ProductPage() {
             </p>
           </div>
 
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => {
+                addItem({
+                  id: product.id,
+                  name: product.name,
+                  price: product.price,
+                  image: selectedImage,
+                  color: selectedColor,
+                  size: product.sizes[0] ?? "One Size",
+                  quantity,
+                });
+                alert("Added to cart!");
+              }}
+              className="rounded-xl border border-white/20 px-5 py-3 font-semibold text-white hover:bg-white/10"
+            >
+              Add to Cart
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                addItem({
+                  id: product.id,
+                  name: product.name,
+                  price: product.price,
+                  image: selectedImage,
+                  color: selectedColor,
+                  size: product.sizes[0] ?? "One Size",
+                  quantity,
+                });
+                window.location.href = "/cart";
+              }}
+              className="rounded-xl bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700"
+            >
+              Buy Now
+            </button>
+          </div>
           <p className="mt-5 text-xs leading-5 text-gray-500">
             Product images show the available color options. Final
             pricing and delivery charges should be confirmed before launch.
