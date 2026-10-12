@@ -28,29 +28,30 @@ export const products: Product[] = [
     colors: ["Black", "White"],
   },
   {
-id: "sports-bag",
-name: "Palmyra Drawstring Bag",
-price: 499,
-category: "Accessories",
-description:
+    id: "sports-bag",
+    name: "Palmyra Drawstring Bag",
+    price: 499,
+    category: "Accessories",
+    description:
   "Carry your essentials in the Palmyra Drawstring Bag. A lightweight, versatile bag available in five colors.",
-image: "/products/green.jpg",
-images: [
+   image: "/products/green.jpg",
+   images: [
   "/products/green.jpg",
   "/products/tan.jpg",
   "/products/navy-blue.jpg",
   "/products/maroon.jpg",
   "/products/black.jpg",
-],
-sizes: ["One Size"],
-colors: ["Green", "Tan", "Navy Blue", "Maroon", "Black"],
-colorImages: {
+    ],
+   sizes: ["One Size"],
+   colors: ["Green", "Tan", "Navy Blue", "Maroon", "Black"],
+   colorImages: {
   Green: "/products/green.jpg",
   Tan: "/products/tan.jpg",
   "Navy Blue": "/products/navy-blue.jpg",
   Maroon: "/products/maroon.jpg",
-  Black: "/products/black.jpg",
-},
+   Black: "/products/black.jpg",
+    },
+  },
   {
     id: "jersey",
     name: "Palmyra Sports Jersey",
