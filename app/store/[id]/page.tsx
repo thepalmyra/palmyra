@@ -68,7 +68,6 @@ export default function ProductPage() {
             {product.name}
           </h1>
 
-          ```tsx
 <div className="mt-4 flex items-center gap-3">
   <span className="text-2xl font-bold text-red-500">
     ₹{product.price.toLocaleString("en-IN")}
@@ -85,7 +84,6 @@ export default function ProductPage() {
     </>
   )}
 </div>
-```
 
           <p className="mt-6 leading-7 text-gray-400">
             {product.description}
