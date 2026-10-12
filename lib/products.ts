@@ -8,6 +8,7 @@ export type Product = {
   images: string[];
   sizes: string[];
   colors: string[];
+  colorImages?: Record<string, string>;
 };
 
 export const products: Product[] = [
@@ -27,20 +28,29 @@ export const products: Product[] = [
     colors: ["Black", "White"],
   },
   {
-    id: "sports-bag",
-    name: "Palmyra Sports Bag",
-    price: 999,
-    category: "Sports Gear",
-    description:
-      "A practical sports bag for training, travel and everyday essentials.",
-    image:
-      "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=85",
-    images: [
-      "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=85",
-    ],
-    sizes: ["One Size"],
-    colors: ["Black", "White", "Red", "Blue", "Grey"],
-  },
+id: "sports-bag",
+name: "Palmyra Drawstring Bag",
+price: 499,
+category: "Accessories",
+description:
+  "Carry your essentials in the Palmyra Drawstring Bag. A lightweight, versatile bag available in five colors.",
+image: "/products/green.jpg",
+images: [
+  "/products/green.jpg",
+  "/products/tan.jpg",
+  "/products/navy-blue.jpg",
+  "/products/maroon.jpg",
+  "/products/black.jpg",
+],
+sizes: ["One Size"],
+colors: ["Green", "Tan", "Navy Blue", "Maroon", "Black"],
+colorImages: {
+  Green: "/products/green.jpg",
+  Tan: "/products/tan.jpg",
+  "Navy Blue": "/products/navy-blue.jpg",
+  Maroon: "/products/maroon.jpg",
+  Black: "/products/black.jpg",
+},
   {
     id: "jersey",
     name: "Palmyra Sports Jersey",
