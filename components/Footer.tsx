@@ -30,18 +30,63 @@ export default function Footer() {
             </div>
           </div>
 
-          <div>
-            <h3 className="text-white font-bold">
-             Follow Us
-            </h3>
+          
+<div>
+  <h3 className="mb-4 font-bold text-white">
+    Follow Palmyra
+  </h3>
 
-            <div className="flex flex-col gap-2 text-gray-400">
-              <Link href="#">YouTube</Link>
-              <Link href="#">Instagram</Link>
-              <Link href="#">Facebook</Link>
-              <Link href="#">X / Twitter</Link>
-            </div>
-          </div>
+  <div className="flex flex-col gap-4 text-gray-400">
+    <a
+      href="https://www.instagram.com/palmyraofficial/"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 transition hover:text-pink-400"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-lg">
+        ◎
+      </span>
+      <span>Instagram</span>
+    </a>
+
+    <a
+      href="https://www.youtube.com/@palmyraofficial"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 transition hover:text-red-500"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-lg">
+        ▶
+      </span>
+      <span>YouTube</span>
+    </a>
+
+    <a
+      href="https://www.facebook.com/palmyrastv"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 transition hover:text-blue-400"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-lg">
+        f
+      </span>
+      <span>Facebook</span>
+    </a>
+
+    <a
+      href="https://x.com/guerreroisravel"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 transition hover:text-white"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-sm font-bold">
+        𝕏
+      </span>
+      <span>X (Twitter)</span>
+    </a>
+  </div>
+</div>
+
 
         </div>
 
