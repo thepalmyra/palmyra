@@ -49,19 +49,34 @@ export default async function ProductPage({
             {product.description}
           </p>
 
-          <div className="mt-8">
-            <h2 className="font-semibold">Choose Color</h2>
-            <div className="mt-3 flex flex-wrap gap-3">
-              {product.colors.map((color) => (
-                <span
-                  key={color}
-                  className="rounded-lg border border-zinc-700 px-4 py-2 text-sm"
-                >
-                  {color}
-                </span>
-              ))}
-            </div>
-          </div>
+         {/* CHOOSE COLOR */}
+<div className="mt-8">
+  <h2 className="font-semibold">Choose Color</h2>
+
+  <div className="mt-3 flex flex-wrap gap-3">
+    {product.colors.map((color) => {
+      const colorHex: Record<string, string> = {
+        Black: "#000000",
+        White: "#FFFFFF",
+        Red: "#EF4444",
+        Blue: "#3B82F6",
+        Grey: "#808080",
+        Gray: "#808080",
+      };
+
+      return (
+        <div key={color} className="flex flex-col items-center gap-2">
+          <span
+            title={color}
+            className="h-9 w-9 rounded-full border border-zinc-500 shadow-sm"
+            style={{ backgroundColor: colorHex[color] ?? "#A1A1AA" }}
+          />
+          <span className="text-xs text-gray-300">{color}</span>
+        </div>
+      );
+    })}
+  </div>
+</div>
 
           <div className="mt-8">
             <h2 className="font-semibold">Size</h2>
