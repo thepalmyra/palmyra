@@ -1,80 +1,104 @@
-
 import Link from "next/link";
 import { products } from "@/lib/products";
 
 export default function StorePage() {
   return (
-    <main className="min-h-screen bg-black px-5 py-10 text-white md:px-10">
+    <main className="min-h-screen bg-black text-white">
+      {/* PRODUCT BANNER */}
+      <section className="relative flex min-h-[340px] items-center overflow-hidden border-b border-zinc-800 md:min-h-[440px]">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage:
+              "linear-gradient(90deg, #050505 0%, rgba(5,5,5,0.92) 38%, rgba(5,5,5,0.2) 100%), url('https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1800&q=85')",
+          }}
+        />
 
-      {/* STORE HEADER */}
-      <div className="mb-10">
-        <p className="mb-3 text-sm font-semibold tracking-[0.25em] text-red-500">
-          THE PALMYRA COLLECTION
-        </p>
+        <div className="relative z-10 max-w-2xl px-6 py-14 md:px-12">
+          <p className="mb-4 text-xs font-bold uppercase tracking-[0.3em] text-red-500">
+            The Palmyra Collection
+          </p>
 
-        <h1 className="text-4xl font-bold md:text-5xl">
-          Palmyra Store
-        </h1>
+          <h1 className="text-4xl font-extrabold leading-tight md:text-6xl">
+            Gear Up Your
+            <span className="block text-red-500">Passion.</span>
+          </h1>
 
-        <p className="mt-3 max-w-xl text-gray-400">
-          Discover sportswear and accessories designed for your everyday style.
-        </p>
-      </div>
+          <p className="mt-4 max-w-md text-sm leading-6 text-gray-300 md:text-base">
+            Discover Palmyra sportswear and accessories made for
+            your everyday style.
+          </p>
 
-      {/* PRODUCT GRID */}
-      <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
-
-        {products.map((product) => (
-          <article
-            key={product.id}
-            className="group overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950"
+          <a
+            href="#products"
+            className="mt-7 inline-block rounded-lg bg-red-600 px-6 py-3 text-sm font-bold transition hover:bg-red-700"
           >
-            <Link href={`/store/${product.id}`} className="block">
-              <div className="relative overflow-hidden bg-zinc-900">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="aspect-[3/4] w-full object-cover transition duration-500 group-hover:scale-105"
-                />
+            Shop All Products →
+          </a>
+        </div>
+      </section>
 
-                <span className="absolute left-3 top-3 rounded-full bg-black/75 px-3 py-1 text-[10px] font-semibold tracking-wider">
+      {/* PRODUCT COLLECTION */}
+      <section id="products" className="px-5 py-10 md:px-10 md:py-14">
+        <div className="mb-8">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-red-500">
+            Shop Palmyra
+          </p>
+          <h2 className="text-3xl font-bold md:text-4xl">
+            Our Collection
+          </h2>
+          <p className="mt-2 text-sm text-gray-400">
+            Caps, bags, jerseys and accessories.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+          {products.map((product) => (
+            <article
+              key={product.id}
+              className="group overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950"
+            >
+              <Link href={`/store/${product.id}`} className="block">
+                <div className="overflow-hidden bg-zinc-900">
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="aspect-[3/4] w-full object-cover transition duration-500 group-hover:scale-105"
+                  />
+                </div>
+              </Link>
+
+              <div className="p-3 sm:p-4">
+                <p className="mb-1 text-[10px] uppercase tracking-wider text-gray-500">
                   {product.category}
-                </span>
+                </p>
 
-                <span className="absolute bottom-3 right-3 rounded-full bg-white px-3 py-2 text-xs font-semibold text-black">
-                  View Product ↗
-                </span>
+                <Link href={`/store/${product.id}`}>
+                  <h3 className="font-semibold sm:text-lg">
+                    {product.name}
+                  </h3>
+                </Link>
+
+                <p className="mt-2 font-bold text-red-500">
+                  ₹{product.price.toLocaleString("en-IN")}
+                </p>
+
+                <p className="mt-2 text-xs text-gray-400">
+                  {product.colors.length} color
+                  {product.colors.length === 1 ? "" : "s"} available
+                </p>
+
+                <Link
+                  href={`/store/${product.id}`}
+                  className="mt-4 block rounded-lg bg-red-600 py-3 text-center text-xs font-bold transition hover:bg-red-700 sm:text-sm"
+                >
+                  View Details →
+                </Link>
               </div>
-            </Link>
-
-            <div className="p-3 sm:p-4">
-              <Link href={`/store/${product.id}`}>
-                <h2 className="font-semibold sm:text-lg">
-                  {product.name}
-                </h2>
-              </Link>
-
-              <p className="mt-2 font-bold text-red-500">
-                ₹{product.price.toLocaleString("en-IN")}
-              </p>
-
-              <Link
-                href={`/store/${product.id}`}
-                className="mt-4 block rounded-lg bg-red-600 py-3 text-center text-sm font-semibold transition hover:bg-red-700"
-              >
-                View Details
-              </Link>
-            </div>
-          </article>
-        ))}
-
-      </div>
-
-      {/* STORE FOOTNOTE */}
-      <p className="mt-10 text-center text-xs leading-6 text-gray-500">
-        Palmyra products • New collection coming soon
-      </p>
-
+            </article>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
