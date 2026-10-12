@@ -148,8 +148,8 @@ export default function Home() {
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-2xl font-bold md:text-3xl">
                 {category === "Trending"
-                  ? "🔥 Trending Videos"
-                  : "⚽ Sports"}
+                  ? "Trending Videos"
+                  : "Sports"}
               </h2>
 
               <Link

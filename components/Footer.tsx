@@ -12,8 +12,8 @@ export default function Footer() {
             </h3>
 
             <p className="text-gray-400">
-              Palmyra is a modern OTT streaming platform for
-              entertainment, sports, movies and digital culture connect.
+              Palmyra is a modern lifestyle and fashion brand 
+              bringing together everyday essentials, contemporary style, and self-expression.
             </p>
           </div>
 
