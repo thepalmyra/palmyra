@@ -12,6 +12,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState("");
   const [orderId, setOrderId] = useState<string | number | null>(null);
 
+  const [paymentMethod, setPaymentMethod] = useState("cod");
   const subtotal = items.reduce(
     (total, item) => total + item.price * item.quantity,
     0
@@ -52,8 +53,9 @@ export default function CheckoutPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          customer,
-          items: orderItems,
+         customer,
+         items: orderItems,
+         paymentMethod,
         }),
       });
 
