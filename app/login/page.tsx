@@ -1,16 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("Authentication is not connected yet. Please connect Supabase Auth.");
+    setMessage("");
+    setLoading(true);
+
+    try {
+      const supabase = createClient();
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      router.push("/store");
+      router.refresh();
+    } catch {
+      setMessage("Unable to log in. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -22,11 +48,15 @@ export default function LoginPage() {
 
         <div className="mt-10 rounded-2xl border border-white/10 bg-zinc-950 p-8">
           <h1 className="text-3xl font-bold">Welcome Back</h1>
-          <p className="mt-2 text-gray-400">Login to your Palmyra account.</p>
+          <p className="mt-2 text-gray-400">
+            Login to your Palmyra account.
+          </p>
 
           <form onSubmit={handleLogin} className="mt-8 space-y-5">
             <div>
-              <label htmlFor="email" className="mb-2 block text-sm">Email</label>
+              <label htmlFor="email" className="mb-2 block text-sm">
+                Email
+              </label>
               <input
                 id="email"
                 type="email"
@@ -40,7 +70,9 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="mb-2 block text-sm">Password</label>
+              <label htmlFor="password" className="mb-2 block text-sm">
+                Password
+              </label>
               <input
                 id="password"
                 type="password"
@@ -55,13 +87,16 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-red-600 px-4 py-3 font-semibold hover:bg-red-700"
+              disabled={loading}
+              className="w-full rounded-lg bg-red-600 px-4 py-3 font-semibold hover:bg-red-700 disabled:opacity-60"
             >
-              Login
+              {loading ? "Logging in..." : "Login"}
             </button>
 
             {message && (
-              <p role="status" className="text-sm text-yellow-400">{message}</p>
+              <p role="alert" className="text-sm text-red-400">
+                {message}
+              </p>
             )}
           </form>
 
