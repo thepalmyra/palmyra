@@ -40,10 +40,11 @@ export default function RegisterPage() {
         email: email.trim(),
         password,
         options: {
+          emailRedirectTo: "https://palmyras.vercel.app",
           data: {
             full_name: fullName.trim(),
-          },
-        },
+         },
+       },
       });
 
       if (signupError) {
