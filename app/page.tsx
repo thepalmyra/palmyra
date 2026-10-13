@@ -17,7 +17,7 @@ const products = [
   {
     id: "sports-bag",
     name: "Palmyra Sports Bag",
-    price: "₹999",
+    price: "₹599",
     category: "SPORTS GEAR",
     image:
       "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=85",
