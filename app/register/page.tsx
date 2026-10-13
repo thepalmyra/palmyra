@@ -40,7 +40,7 @@ export default function RegisterPage() {
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: "https://palmyras.vercel.app",
+          emailRedirectTo: "https://palmyras.vercel.app/auth/callback",
           data: {
             full_name: fullName.trim(),
          },
