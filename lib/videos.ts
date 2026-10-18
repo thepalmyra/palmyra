@@ -26,7 +26,7 @@ export const videos = [
     type: "local",
     title: "Welcome to Palmyra",
     description: "Welcome to Palmyra",
-    thumbnail: "/thumbnails/trending1.jpg",
+    thumbnail: "/thumbnails/trending4.jpg",
   },
 
   {
@@ -34,6 +34,6 @@ export const videos = [
     type: "local",
     title: "Welcome to Palmyra",
     description: "Welcome to Palmyra",
-    thumbnail: "/thumbnails/trending1.jpg",
+    thumbnail: "/thumbnails/trending3.jpg",
   },
 ];
