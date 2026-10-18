@@ -1,15 +1,15 @@
 export const videos = [
   {
-    id: "AJck0YrAe-E",
+    id: "7oGGGR7fsF0",
     type: "youtube",
-    title: "12 Objects You Can Never Touch",
+    title: "10 Stupidest Mistakes in Soccer",
     description: "The World's Most Protected Treasures",
   },
 
   {
     id: "pCXNfq8H3Tg",
     type: "youtube",
-    title: "Best Saves",
+    title: "20 BEST WAYS TO SHOOT A BALL",
     description: "FIFA World Cup",
   },
 
