@@ -1,9 +1,9 @@
+
 "use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { videos } from "@/lib/videos";
-
 
 function thumbnail(video: any) {
   return video.type === "youtube"
@@ -12,49 +12,55 @@ function thumbnail(video: any) {
 }
 
 export default function Watch() {
+  // Use only local Palmyra videos for the autoplay banner.
   const bannerVideos = videos.filter(
-  (video: any) => video.type === "local" && video.category === "Palmyra"
-);
-
-const [currentVideo, setCurrentVideo] = useState(0);
-
-useEffect(() => {
-  if (bannerVideos.length <= 1) return;
-
-  const timer = setInterval(() => {
-    setCurrentVideo((prev) => (prev + 1) % bannerVideos.length);
-  }, 10000);
-
-  return () => clearInterval(timer);
-}, [bannerVideos.length]);
-
-  if (!bannerVideos.length) {
-  return (
-    <main className="min-h-screen bg-black p-8 text-white">
-      Add local Palmyra videos to lib/videos.ts to display the banner.
-    </main>
+    (video: any) =>
+      video.type === "local" && video.category === "Palmyra"
   );
-}
+
+  const [currentVideo, setCurrentVideo] = useState(0);
+
+  // Change the banner video every 10 seconds.
+  useEffect(() => {
+    if (bannerVideos.length <= 1) return;
+
+    const timer = setInterval(() => {
+      setCurrentVideo((prev) => (prev + 1) % bannerVideos.length);
+    }, 10000);
+
+    return () => clearInterval(timer);
+  }, [bannerVideos.length]);
+
+  if (bannerVideos.length === 0) {
+    return (
+      <main className="min-h-screen bg-black p-8 text-white">
+        Add local Palmyra videos to lib/videos.ts to display the banner.
+      </main>
+    );
+  }
 
   const featuredVideo = bannerVideos[currentVideo];
 
   return (
     <main className="min-h-screen bg-black pb-24 text-white">
-
-      {/* PALMYRA INTRO + FEATURED VIDEO */}
-
+      {/* PALMYRA AUTOPLAY BANNER */}
       <section className="relative flex min-h-[580px] items-center overflow-hidden md:min-h-[750px]">
-
-        <img
-          src={thumbnail(featuredVideo)}
-          alt={featuredVideo.title}
+        <video
+          key={featuredVideo.id}
+          src={`/videos/${featuredVideo.id}.mp4`}
           className="absolute inset-0 h-full w-full object-cover"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
         />
 
+        {/* Dark overlay for readable text */}
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
 
+        {/* Banner content */}
         <div className="relative z-10 max-w-4xl px-6 py-24 md:px-16">
-
           <p className="mb-4 text-sm font-semibold tracking-[0.35em] text-red-500">
             INTRODUCING PALMYRA
           </p>
@@ -71,7 +77,6 @@ useEffect(() => {
           </p>
 
           <div className="mt-8 flex flex-wrap gap-4">
-
             <Link
               href={`/watch/${featuredVideo.id}`}
               className="rounded-lg bg-red-600 px-7 py-4 font-bold transition hover:bg-red-700"
@@ -85,72 +90,66 @@ useEffect(() => {
             >
               Shop Palmyra →
             </Link>
-
           </div>
 
           <p className="mt-6 text-sm text-gray-400">
             Featured: {featuredVideo.title}
           </p>
-
         </div>
       </section>
 
+      {/* ALL VIDEO CATEGORIES */}
+      {Array.from(
+        new Set(
+          videos.map((video: any) => video.category).filter(Boolean)
+        )
+      ).map((category) => {
+        const categoryVideos = videos.filter(
+          (video: any) => video.category === category
+        );
 
-
-
-{/* ALL VIDEO CATEGORIES */}
-{Array.from(
-  new Set(videos.map((video: any) => video.category).filter(Boolean))
-).map((category) => {
-  const categoryVideos = videos.filter(
-    (video: any) => video.category === category
-  );
-
-  return (
-    <section key={category} className="px-5 py-10 md:px-10">
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-bold md:text-3xl">
-          {category}
-        </h2>
-      </div>
-
-      <div className="flex gap-5 overflow-x-auto pb-4">
-        {categoryVideos.map((video: any) => (
-          <Link
-            key={video.id}
-            href={`/watch/${video.id}`}
-            className="w-[260px] flex-shrink-0 md:w-[320px]"
+        return (
+          <section
+            key={category}
+            className="px-5 py-10 md:px-10"
           >
-            <div className="overflow-hidden rounded-xl bg-zinc-900">
-              <img
-                src={
-                  video.type === "youtube"
-                    ? `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`
-                    : video.thumbnail
-                }
-                alt={video.title}
-                className="aspect-video w-full object-cover transition duration-300 hover:scale-105"
-              />
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-2xl font-bold md:text-3xl">
+                {category}
+              </h2>
             </div>
 
-            <h3 className="mt-3 font-semibold">{video.title}</h3>
-            <p className="mt-1 text-sm text-gray-400">
-              {video.description}
-            </p>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-})}
+            <div className="flex gap-5 overflow-x-auto pb-4">
+              {categoryVideos.map((video: any) => (
+                <Link
+                  key={video.id}
+                  href={`/watch/${video.id}`}
+                  className="w-[260px] flex-shrink-0 md:w-[320px]"
+                >
+                  <div className="overflow-hidden rounded-xl bg-zinc-900">
+                    <img
+                      src={thumbnail(video)}
+                      alt={video.title}
+                      className="aspect-video w-full object-cover transition duration-300 hover:scale-105"
+                    />
+                  </div>
 
+                  <h3 className="mt-3 font-semibold">
+                    {video.title}
+                  </h3>
 
-      
+                  <p className="mt-1 text-sm text-gray-400">
+                    {video.description}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        );
+      })}
 
-      {/* BRAND + INSTAGRAM */}
-
+      {/* BRAND + COMMUNITY */}
       <section className="px-6 py-16 text-center md:py-20">
-
         <p className="text-xs font-semibold tracking-[0.3em] text-red-500">
           JOIN THE PALMYRA COMMUNITY
         </p>
@@ -170,9 +169,7 @@ useEffect(() => {
         >
           DISCOVER PALMYRA →
         </Link>
-
       </section>
-
     </main>
   );
 }

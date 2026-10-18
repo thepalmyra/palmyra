@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -47,24 +48,25 @@ function thumbnail(video: any) {
 
 export default function Home() {
   const palmyraVideos = videos.filter(
-  (video: any) => video.category === "Palmyra" && video.type === "local"
-);
+    (video: any) =>
+      video.category === "Palmyra" && video.type === "local"
+  );
 
-const [currentVideo, setCurrentVideo] = useState(0);
+  const [currentVideo, setCurrentVideo] = useState(0);
 
   useEffect(() => {
-  if (palmyraVideos.length <= 1) return;
+    if (palmyraVideos.length <= 1) return;
 
-  const timer = setInterval(() => {
-    setCurrentVideo((prev) => (prev + 1) % palmyraVideos.length);
-  }, 10000);
+    const timer = setInterval(() => {
+      setCurrentVideo((prev) => (prev + 1) % palmyraVideos.length);
+    }, 10000);
 
-  return () => clearInterval(timer);
-}, [palmyraVideos.length]);
+    return () => clearInterval(timer);
+  }, [palmyraVideos.length]);
 
-  if (!palmyraVideos.length) {
+  if (palmyraVideos.length === 0) {
     return (
-      <main className="min-h-screen bg-black text-white p-8">
+      <main className="min-h-screen bg-black p-8 text-white">
         Add videos to lib/videos.ts to display the homepage.
       </main>
     );
@@ -74,26 +76,22 @@ const [currentVideo, setCurrentVideo] = useState(0);
 
   return (
     <main className="min-h-screen bg-black pb-24 text-white">
-
-      {/* PALMYRA INTRO + FEATURED VIDEO */}
-
+      {/* PALMYRA INTRO BANNER */}
       <section className="relative flex min-h-[580px] items-center overflow-hidden md:min-h-[750px]">
-
         <video
-  key={featuredVideo.id}
-  src={`/videos/${featuredVideo.id}.mp4`}
-  className="absolute inset-0 h-full w-full object-cover"
-  autoPlay
-  muted
-  loop
-  playsInline
-  preload="auto"
-/>
+          key={featuredVideo.id}
+          src={`/videos/${featuredVideo.id}.mp4`}
+          className="absolute inset-0 h-full w-full object-cover"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+        />
 
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
 
         <div className="relative z-10 max-w-4xl px-6 py-24 md:px-16">
-
           <p className="mb-4 text-sm font-semibold tracking-[0.35em] text-red-500">
             INTRODUCING PALMYRA
           </p>
@@ -110,7 +108,6 @@ const [currentVideo, setCurrentVideo] = useState(0);
           </p>
 
           <div className="mt-8 flex flex-wrap gap-4">
-
             <Link
               href={`/watch/${featuredVideo.id}`}
               className="rounded-lg bg-red-600 px-7 py-4 font-bold transition hover:bg-red-700"
@@ -124,78 +121,70 @@ const [currentVideo, setCurrentVideo] = useState(0);
             >
               Shop Palmyra →
             </Link>
-
           </div>
 
           <p className="mt-6 text-sm text-gray-400">
             Featured: {featuredVideo.title}
           </p>
-
         </div>
       </section>
 
-
       {/* VIDEO CATEGORIES */}
-{["Palmyra", "Football"].map((category) => {
-  const categoryVideos = videos.filter(
-    (video: any) => video.category === category
-  );
+      {["Palmyra", "Football"].map((category) => {
+        const categoryVideos = videos.filter(
+          (video: any) => video.category === category
+        );
 
-  return (
-    <section key={category} className="px-5 py-10 md:px-10">
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-bold md:text-3xl">
-{category === "Palmyra"
-  ? "Palmyra"
-  : category === "Football"
-    ? "Football"
-    : "Movies"}
-        </h2>
-
-        <Link
-          href="/watch"
-          className="text-sm text-gray-400 transition hover:text-white"
-        >
-          Explore All →
-        </Link>
-      </div>
-
-      <div className="flex gap-5 overflow-x-auto pb-4">
-        {categoryVideos.map((video: any) => (
-          <Link
-            key={video.id}
-            href={`/watch/${video.id}`}
-            className="w-[260px] flex-shrink-0 md:w-[320px]"
+        return (
+          <section
+            key={category}
+            className="px-5 py-10 md:px-10"
           >
-            <div className="overflow-hidden rounded-xl bg-zinc-900">
-              <img
-                src={
-                  video.type === "youtube"
-                    ? `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`
-                    : video.thumbnail
-                }
-                alt={video.title}
-                className="aspect-video w-full object-cover transition duration-300 hover:scale-105"
-              />
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <h2 className="text-2xl font-bold md:text-3xl">
+                {category}
+              </h2>
+
+              <Link
+                href="/watch"
+                className="shrink-0 text-sm text-gray-400 transition hover:text-white"
+              >
+                Explore All →
+              </Link>
             </div>
 
-            <h3 className="mt-3 font-semibold">{video.title}</h3>
-            <p className="mt-1 text-sm text-gray-400">
-              {video.description}
-            </p>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-})}
+            <div className="flex gap-5 overflow-x-auto pb-4">
+              {categoryVideos.map((video: any) => (
+                <Link
+                  key={video.id}
+                  href={`/watch/${video.id}`}
+                  className="w-[260px] flex-shrink-0 md:w-[320px]"
+                >
+                  <div className="overflow-hidden rounded-xl bg-zinc-900">
+                    <img
+                      src={thumbnail(video)}
+                      alt={video.title}
+                      className="aspect-video w-full object-cover transition duration-300 hover:scale-105"
+                    />
+                  </div>
+
+                  <h3 className="mt-3 font-semibold">
+                    {video.title}
+                  </h3>
+
+                  <p className="mt-1 text-sm text-gray-400">
+                    {video.description}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        );
+      })}
 
       {/* PALMYRA PRODUCT COLLECTION */}
-
       <section className="bg-zinc-950 px-5 py-12 md:px-10 md:py-16">
-
         <div className="mb-8 flex items-end justify-between gap-4">
-
           <div>
             <p className="mb-2 text-xs font-semibold tracking-[0.25em] text-red-500">
               THE PALMYRA COLLECTION
@@ -216,18 +205,15 @@ const [currentVideo, setCurrentVideo] = useState(0);
           >
             Shop All →
           </Link>
-
         </div>
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-4 md:gap-6">
-
           {products.map((product) => (
             <Link
               key={product.id}
               href={`/store/${product.id}`}
               className="group min-w-0"
             >
-
               <div className="overflow-hidden rounded-xl bg-zinc-900">
                 <img
                   src={product.image}
@@ -251,10 +237,8 @@ const [currentVideo, setCurrentVideo] = useState(0);
               <p className="mt-3 text-xs text-gray-400 transition group-hover:text-white">
                 View Product →
               </p>
-
             </Link>
           ))}
-
         </div>
 
         <div className="mt-12 text-center">
@@ -265,13 +249,10 @@ const [currentVideo, setCurrentVideo] = useState(0);
             EXPLORE ALL PRODUCTS
           </Link>
         </div>
-
       </section>
 
-      {/* BRAND + INSTAGRAM */}
-
+      {/* BRAND + COMMUNITY */}
       <section className="px-6 py-16 text-center md:py-20">
-
         <p className="text-xs font-semibold tracking-[0.3em] text-red-500">
           JOIN THE PALMYRA COMMUNITY
         </p>
@@ -291,9 +272,7 @@ const [currentVideo, setCurrentVideo] = useState(0);
         >
           DISCOVER PALMYRA →
         </Link>
-
       </section>
-
     </main>
   );
 }
