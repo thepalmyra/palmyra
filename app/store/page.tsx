@@ -99,6 +99,34 @@ export default function StorePage() {
           ))}
         </div>
       </section>
+
+
+      
+      {/* BRAND + INSTAGRAM */}
+
+      <section className="px-6 py-16 text-center md:py-20">
+
+        <p className="text-xs font-semibold tracking-[0.3em] text-red-500">
+          JOIN THE PALMYRA COMMUNITY
+        </p>
+
+        <h2 className="mt-4 text-3xl font-bold md:text-4xl">
+          Built around your passion.
+        </h2>
+
+        <p className="mx-auto mt-4 max-w-xl leading-7 text-gray-400">
+          Discover our latest products, original videos and
+          upcoming collections.
+        </p>
+
+        <Link
+          href="/store"
+          className="mt-7 inline-block rounded-lg border border-white px-7 py-4 font-semibold transition hover:bg-white hover:text-black"
+        >
+          DISCOVER PALMYRA →
+        </Link>
+
+      </section>
     </main>
   );
 }
