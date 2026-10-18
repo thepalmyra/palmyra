@@ -93,7 +93,7 @@ export default function Watch() {
 
       {/* VIDEO CATEGORIES: ONLY TWO */}
 
-      {["Trending", "Sports"].map((category) => {
+      {["Palmyra", "Sports"].map((category) => {
         const categoryVideos = videos.filter(
           (video: any) =>
             video.category?.toLowerCase() === category.toLowerCase()
@@ -112,9 +112,9 @@ export default function Watch() {
 
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-2xl font-bold md:text-3xl">
-                {category === "Trending"
-                  ? "Trending Videos"
-                  : "Sports"}
+                {category === "Explore"
+                  ? "Palmyra"
+                  : "Football"}
               </h2>
 
               <Link
