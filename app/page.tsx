@@ -131,7 +131,7 @@ const [currentVideo, setCurrentVideo] = useState(0);
 
 
       {/* VIDEO CATEGORIES */}
-{["Palmyra", "Football"].map((category) => {
+{["Palmyra", "Football", "Movies"].map((category) => {
   const categoryVideos = videos.filter(
     (video: any) => video.category === category
   );
