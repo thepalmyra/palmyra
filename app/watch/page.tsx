@@ -93,8 +93,11 @@ export default function Watch() {
 
 
 
-      {/* VIDEO CATEGORIES */}
-{["Palmyra", "Football"].map((category) => {
+
+{/* ALL VIDEO CATEGORIES */}
+{Array.from(
+  new Set(videos.map((video: any) => video.category).filter(Boolean))
+).map((category) => {
   const categoryVideos = videos.filter(
     (video: any) => video.category === category
   );
@@ -103,15 +106,8 @@ export default function Watch() {
     <section key={category} className="px-5 py-10 md:px-10">
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-2xl font-bold md:text-3xl">
-          {category === "Palmyra" ? "Palmyra" : "Football"}
+          {category}
         </h2>
-
-        <Link
-          href="/watch"
-          className="text-sm text-gray-400 transition hover:text-white"
-        >
-          Explore All →
-        </Link>
       </div>
 
       <div className="flex gap-5 overflow-x-auto pb-4">
@@ -143,6 +139,7 @@ export default function Watch() {
     </section>
   );
 })}
+
 
       
 
