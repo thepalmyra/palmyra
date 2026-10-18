@@ -1,3 +1,6 @@
+
+import { videos } from "@/lib/videos";
+
 export default async function VideoPage({
   params,
 }: {
@@ -5,29 +8,36 @@ export default async function VideoPage({
 }) {
   const { id } = await params;
 
-  const isLocal = id.startsWith("PTV");
+  const video = videos.find((item) => item.id === id);
+
+  if (!video) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
+        Video not found.
+      </main>
+    );
+  }
 
   return (
-    <main className="bg-black min-h-screen flex justify-center items-center p-4">
-      <div className="w-full max-w-7xl aspect-video">
-
-        {isLocal ? (
+    <main className="flex min-h-screen items-center justify-center bg-black p-4">
+      <div className="aspect-video w-full max-w-7xl">
+        {video.type === "local" ? (
           <video
-            className="w-full h-full rounded-xl"
-            src={`/videos/${id}.mp4`}
+            className="h-full w-full rounded-xl object-contain"
+            src={`/videos/${video.id}.mp4`}
             controls
             autoPlay
+            playsInline
           />
         ) : (
           <iframe
-            className="w-full h-full rounded-xl"
-            src={`https://www.youtube.com/embed/${id}?autoplay=1`}
-            title="YouTube player"
+            className="h-full w-full rounded-xl"
+            src={`https://www.youtube.com/embed/${video.id}?autoplay=1`}
+            title={video.title}
             allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           />
         )}
-
       </div>
     </main>
   );
