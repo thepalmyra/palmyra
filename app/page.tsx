@@ -125,72 +125,56 @@ export default function Home() {
         </div>
       </section>
 
-      {/* VIDEO CATEGORIES: ONLY TWO */}
+      {/* VIDEO CATEGORIES */}
+{["Palmyra", "Football"].map((category) => {
+  const categoryVideos = videos.filter(
+    (video: any) => video.category === category
+  );
 
-      {["Trending", "Sports"].map((category) => {
-        const categoryVideos = videos.filter(
-          (video: any) =>
-            video.category?.toLowerCase() === category.toLowerCase()
-        );
+  return (
+    <section key={category} className="px-5 py-10 md:px-10">
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-2xl font-bold md:text-3xl">
+          {category === "Palmyra" ? "Palmyra Videos" : "Football"}
+        </h2>
 
-        const displayedVideos =
-          categoryVideos.length > 0
-            ? categoryVideos
-            : videos.slice(0, 6);
+        <Link
+          href="/watch"
+          className="text-sm text-gray-400 transition hover:text-white"
+        >
+          Explore All →
+        </Link>
+      </div>
 
-        return (
-          <section
-            key={category}
-            className="px-5 py-10 md:px-10"
+      <div className="flex gap-5 overflow-x-auto pb-4">
+        {categoryVideos.map((video: any) => (
+          <Link
+            key={video.id}
+            href={`/watch/${video.id}`}
+            className="w-[260px] flex-shrink-0 md:w-[320px]"
           >
-
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold md:text-3xl">
-                {category === "Explore"
-                  ? "Pamyra"
-                  : "Football"}
-              </h2>
-
-              <Link
-                href="/watch"
-                className="text-sm text-gray-400 transition hover:text-white"
-              >
-                Explore All →
-              </Link>
+            <div className="overflow-hidden rounded-xl bg-zinc-900">
+              <img
+                src={
+                  video.type === "youtube"
+                    ? `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`
+                    : video.thumbnail
+                }
+                alt={video.title}
+                className="aspect-video w-full object-cover transition duration-300 hover:scale-105"
+              />
             </div>
 
-            <div className="flex gap-5 overflow-x-auto pb-4">
-
-              {displayedVideos.map((video: any, index: number) => (
-                <Link
-                  key={`${category}-${video.id}-${index}`}
-                  href={`/watch/${video.id}`}
-                  className="w-[260px] flex-shrink-0 md:w-[320px]"
-                >
-
-                  <div className="overflow-hidden rounded-xl bg-zinc-900">
-                    <img
-                      src={thumbnail(video)}
-                      alt={video.title}
-                      className="aspect-video w-full object-cover transition duration-300 hover:scale-105"
-                    />
-                  </div>
-
-                  <h3 className="mt-3 font-semibold">
-                    {video.title}
-                  </h3>
-
-                  <p className="mt-1 text-sm text-gray-400">
-                    {video.description}
-                  </p>
-
-                </Link>
-              ))}
-
-            </div>
-          </section>
-        );
-      })}
+            <h3 className="mt-3 font-semibold">{video.title}</h3>
+            <p className="mt-1 text-sm text-gray-400">
+              {video.description}
+            </p>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+})}
 
       {/* PALMYRA PRODUCT COLLECTION */}
 
