@@ -47,6 +47,6 @@ export const videos = [
     title: "Welcome to Palmyra",
     description: "Palmyra Brand",
     thumbnail: "/thumbnails/trending3.jpg",
-    category: "Movies",
+    category: "Palmyra",
   },
 ];
