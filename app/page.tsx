@@ -46,19 +46,23 @@ function thumbnail(video: any) {
 }
 
 export default function Home() {
-  const [currentVideo, setCurrentVideo] = useState(0);
+  const palmyraVideos = videos.filter(
+  (video: any) => video.category === "Palmyra" && video.type === "local"
+);
+
+const [currentVideo, setCurrentVideo] = useState(0);
 
   useEffect(() => {
-    if (videos.length <= 1) return;
+  if (palmyraVideos.length <= 1) return;
 
-    const timer = setInterval(() => {
-      setCurrentVideo((prev) => (prev + 1) % videos.length);
-    }, 10000);
+  const timer = setInterval(() => {
+    setCurrentVideo((prev) => (prev + 1) % palmyraVideos.length);
+  }, 10000);
 
-    return () => clearInterval(timer);
-  }, []);
+  return () => clearInterval(timer);
+}, [palmyraVideos.length]);
 
-  if (!videos.length) {
+  if (!palmyraVideos.length) {
     return (
       <main className="min-h-screen bg-black text-white p-8">
         Add videos to lib/videos.ts to display the homepage.
@@ -66,7 +70,7 @@ export default function Home() {
     );
   }
 
-  const featuredVideo = videos[currentVideo];
+  const featuredVideo = palmyraVideos[currentVideo];
 
   return (
     <main className="min-h-screen bg-black pb-24 text-white">
