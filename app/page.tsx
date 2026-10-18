@@ -79,11 +79,16 @@ const [currentVideo, setCurrentVideo] = useState(0);
 
       <section className="relative flex min-h-[580px] items-center overflow-hidden md:min-h-[750px]">
 
-        <img
-          src={thumbnail(featuredVideo)}
-          alt={featuredVideo.title}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+        <video
+  key={featuredVideo.id}
+  src={`/videos/${featuredVideo.id}.mp4`}
+  className="absolute inset-0 h-full w-full object-cover"
+  autoPlay
+  muted
+  loop
+  playsInline
+  preload="auto"
+/>
 
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
 

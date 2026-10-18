@@ -12,27 +12,31 @@ function thumbnail(video: any) {
 }
 
 export default function Watch() {
-  const [currentVideo, setCurrentVideo] = useState(0);
+  const bannerVideos = videos.filter(
+  (video: any) => video.type === "local" && video.category === "Palmyra"
+);
 
-  useEffect(() => {
-    if (videos.length <= 1) return;
+const [currentVideo, setCurrentVideo] = useState(0);
 
-    const timer = setInterval(() => {
-      setCurrentVideo((prev) => (prev + 1) % videos.length);
-    }, 10000);
+useEffect(() => {
+  if (bannerVideos.length <= 1) return;
 
-    return () => clearInterval(timer);
-  }, []);
+  const timer = setInterval(() => {
+    setCurrentVideo((prev) => (prev + 1) % bannerVideos.length);
+  }, 10000);
 
-  if (!videos.length) {
-    return (
-      <main className="min-h-screen bg-black text-white p-8">
-        Add videos to lib/videos.ts to display the watchpage.
-      </main>
-    );
-  }
+  return () => clearInterval(timer);
+}, [bannerVideos.length]);
 
-  const featuredVideo = videos[currentVideo];
+  if (!bannerVideos.length) {
+  return (
+    <main className="min-h-screen bg-black p-8 text-white">
+      Add local Palmyra videos to lib/videos.ts to display the banner.
+    </main>
+  );
+}
+
+  const featuredVideo = bannerVideos[currentVideo];
 
   return (
     <main className="min-h-screen bg-black pb-24 text-white">
