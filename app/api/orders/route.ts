@@ -1,3 +1,4 @@
+
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { products } from "@/lib/products";
@@ -6,6 +7,8 @@ export const runtime = "nodejs";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+const supabasePublishableKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 type OrderRequest = {
   customer?: {
@@ -35,13 +38,48 @@ export async function POST(request: Request) {
   }
 
   try {
+    const authorization = request.headers.get("authorization");
+    let userId: string | null = null;
+
+    if (authorization) {
+      const match = authorization.match(/^Bearer\s+(.+)$/i);
+
+      if (!match || !supabasePublishableKey) {
+        return NextResponse.json(
+          { error: "Invalid authentication." },
+          { status: 401 }
+        );
+      }
+
+      const authClient = createClient(
+        supabaseUrl,
+        supabasePublishableKey,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      );
+
+      const { data, error } = await authClient.auth.getUser(match[1]);
+
+      if (error || !data.user) {
+        return NextResponse.json(
+          { error: "Your session is invalid. Please sign in again." },
+          { status: 401 }
+        );
+      }
+
+      userId = data.user.id;
+    }
+
     const body = (await request.json()) as OrderRequest;
     const customer = body.customer;
     const items = body.items;
 
     if (
       !customer ||
-      !items ||
       !Array.isArray(items) ||
       items.length === 0 ||
       items.length > 50
@@ -80,7 +118,16 @@ export async function POST(request: Request) {
     }
 
     let subtotal = 0;
-    const validatedItems = [];
+
+    const validatedItems: {
+      id: string;
+      name: string;
+      color: string;
+      size: string;
+      quantity: number;
+      unitPrice: number;
+      lineTotal: number;
+    }[] = [];
 
     for (const item of items) {
       if (
@@ -118,7 +165,7 @@ export async function POST(request: Request) {
         name: product.name,
         color: item.color,
         size: item.size,
-        quantity: item.quantity,
+        quantity: item.quantity!,
         unitPrice: product.price,
         lineTotal,
       });
@@ -134,13 +181,14 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from("orders")
       .insert({
+        user_id: userId,
         customer_name: customer.fullName!.trim(),
         phone: customer.phone!.trim(),
         email: customer.email!.trim(),
         address: customer.address!.trim(),
         city: customer.city!.trim(),
         state: customer.state!.trim(),
-        pincode: customer.pincode!,
+        pincode: customer.pincode!.trim(),
         country: customer.country!.trim(),
         items: validatedItems,
         subtotal,
