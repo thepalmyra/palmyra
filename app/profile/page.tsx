@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -11,7 +11,18 @@ function Icon({
   name,
   size = 22,
 }: {
-  name: "user" | "package" | "map" | "shield" | "shopping" | "logout" | "edit" | "mail" | "calendar" | "arrow" | "check";
+  name:
+    | "user"
+    | "package"
+    | "map"
+    | "shield"
+    | "shopping"
+    | "logout"
+    | "edit"
+    | "mail"
+    | "calendar"
+    | "arrow"
+    | "check";
   size?: number;
 }) {
   const common = {
@@ -54,6 +65,7 @@ function Icon({
 
 function formatDate(value?: string) {
   if (!value) return "Member";
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Member";
 
@@ -61,6 +73,38 @@ function formatDate(value?: string) {
     month: "long",
     year: "numeric",
   });
+}
+
+function ActionCard({
+  href,
+  icon,
+  title,
+  description,
+}: {
+  href: string;
+  icon: "package" | "map" | "shield" | "shopping";
+  title: string;
+  description: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-950 p-5 transition hover:border-red-500/50 hover:bg-white/[0.03]"
+    >
+      <div className="shrink-0 rounded-xl bg-red-600/10 p-3 text-red-400">
+        <Icon name={icon} size={23} />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <h3 className="font-semibold">{title}</h3>
+        <p className="mt-1 text-sm text-zinc-400">{description}</p>
+      </div>
+
+      <span className="shrink-0 text-zinc-500 transition group-hover:translate-x-1 group-hover:text-red-400">
+        <Icon name="arrow" size={19} />
+      </span>
+    </Link>
+  );
 }
 
 export default function ProfilePage() {
@@ -90,6 +134,7 @@ export default function ProfilePage() {
       }
 
       const currentUser = data.user ?? null;
+
       setUser(currentUser);
       setFullName(
         currentUser?.user_metadata?.full_name ??
@@ -108,6 +153,7 @@ export default function ProfilePage() {
       if (!active) return;
 
       const currentUser = session?.user ?? null;
+
       setUser(currentUser);
       setFullName(
         currentUser?.user_metadata?.full_name ??
@@ -124,7 +170,7 @@ export default function ProfilePage() {
     };
   }, []);
 
-  async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setSuccess("");
@@ -132,12 +178,14 @@ export default function ProfilePage() {
 
     try {
       const supabase = createClient();
-      const { data, error: updateError } = await supabase.auth.updateUser({
-        data: {
-          full_name: fullName.trim(),
-          phone: phone.trim(),
-        },
-      });
+
+      const { data, error: updateError } =
+        await supabase.auth.updateUser({
+          data: {
+            full_name: fullName.trim(),
+            phone: phone.trim(),
+          },
+        });
 
       if (updateError) {
         setError(updateError.message);
@@ -146,9 +194,7 @@ export default function ProfilePage() {
 
       if (data.user) setUser(data.user);
 
-      setFullName(
-        data.user?.user_metadata?.full_name ?? fullName.trim()
-      );
+      setFullName(data.user?.user_metadata?.full_name ?? fullName.trim());
       setPhone(data.user?.user_metadata?.phone ?? phone.trim());
       setEditing(false);
       setSuccess("Your profile details have been saved.");
@@ -185,7 +231,9 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-5 text-white">
-        <p className="text-sm text-zinc-400">Loading your Palmyra account...</p>
+        <p className="text-sm text-zinc-400">
+          Loading your Palmyra account...
+        </p>
       </main>
     );
   }
@@ -196,9 +244,11 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-black px-4 py-8 text-white sm:px-6 sm:py-12">
       <div className="mx-auto max-w-5xl">
-        {/* Header */}
         <header className="flex items-center justify-between border-b border-white/10 pb-5">
-          <Link href="/" className="text-2xl font-black tracking-[0.18em] text-red-500">
+          <Link
+            href="/"
+            className="text-2xl font-black tracking-[0.18em] text-red-500"
+          >
             PALMYRA
           </Link>
 
@@ -212,20 +262,25 @@ export default function ProfilePage() {
         </header>
 
         {error && (
-          <p role="alert" className="mt-5 rounded-xl border border-red-500/30 bg-red-950/40 p-4 text-sm text-red-300">
+          <p
+            role="alert"
+            className="mt-5 rounded-xl border border-red-500/30 bg-red-950/40 p-4 text-sm text-red-300"
+          >
             {error}
           </p>
         )}
 
         {success && (
-          <p role="status" className="mt-5 rounded-xl border border-green-500/30 bg-green-950/30 p-4 text-sm text-green-300">
+          <p
+            role="status"
+            className="mt-5 rounded-xl border border-green-500/30 bg-green-950/30 p-4 text-sm text-green-300"
+          >
             {success}
           </p>
         )}
 
         {user ? (
           <>
-            {/* Profile Hero */}
             <section className="relative mt-8 overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 p-6 sm:p-10">
               <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-red-600/10 blur-3xl" />
 
@@ -277,7 +332,6 @@ export default function ProfilePage() {
               </div>
             </section>
 
-            {/* Account Details */}
             <section className="mt-8 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="rounded-2xl border border-white/10 bg-zinc-950 p-6 sm:p-8">
                 <div className="flex items-center gap-3">
@@ -286,7 +340,9 @@ export default function ProfilePage() {
                   </div>
 
                   <div>
-                    <h2 className="text-xl font-bold">Personal Information</h2>
+                    <h2 className="text-xl font-bold">
+                      Personal Information
+                    </h2>
                     <p className="mt-1 text-sm text-zinc-400">
                       Manage your account details.
                     </p>
@@ -296,24 +352,26 @@ export default function ProfilePage() {
                 {editing ? (
                   <form onSubmit={saveProfile} className="mt-7 space-y-5">
                     <div>
-                      <label htmlFor="fullName" className="mb-2 block text-sm text-zinc-300">
+                      <label
+                        htmlFor="fullName"
+                        className="mb-2 block text-sm text-zinc-300"
+                      >
                         Full name
                       </label>
                       <input
                         id="fullName"
                         name="fullName"
-                        type="text"
                         autoComplete="name"
                         maxLength={100}
                         value={fullName}
                         onChange={(event) => setFullName(event.target.value)}
-                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 outline-none transition focus:border-red-500"
+                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 outline-none focus:border-red-500"
                         placeholder="Enter your full name"
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="email" className="mb-2 block text-sm text-zinc-300">
+                      <label className="mb-2 block text-sm text-zinc-300">
                         Email address
                       </label>
                       <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-zinc-400">
@@ -326,7 +384,10 @@ export default function ProfilePage() {
                     </div>
 
                     <div>
-                      <label htmlFor="phone" className="mb-2 block text-sm text-zinc-300">
+                      <label
+                        htmlFor="phone"
+                        className="mb-2 block text-sm text-zinc-300"
+                      >
                         Phone number
                       </label>
                       <input
@@ -337,7 +398,7 @@ export default function ProfilePage() {
                         maxLength={30}
                         value={phone}
                         onChange={(event) => setPhone(event.target.value)}
-                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 outline-none transition focus:border-red-500"
+                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 outline-none focus:border-red-500"
                         placeholder="Enter your phone number"
                       />
                     </div>
@@ -346,7 +407,7 @@ export default function ProfilePage() {
                       <button
                         type="submit"
                         disabled={saving}
-                        className="flex-1 rounded-xl bg-red-600 px-5 py-3 font-semibold transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex-1 rounded-xl bg-red-600 px-5 py-3 font-semibold transition hover:bg-red-700 disabled:opacity-60"
                       >
                         {saving ? "Saving..." : "Save Changes"}
                       </button>
@@ -363,6 +424,7 @@ export default function ProfilePage() {
                           setPhone(user.user_metadata?.phone ?? "");
                           setEditing(false);
                           setError("");
+                          setSuccess("");
                         }}
                         className="rounded-xl border border-white/15 px-5 py-3 font-semibold transition hover:bg-white/5 disabled:opacity-60"
                       >
@@ -402,71 +464,39 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Quick Actions */}
               <div className="space-y-4">
                 <h2 className="text-xl font-bold">Your Palmyra</h2>
 
-                <Link
+                <ActionCard
                   href="/store"
-                  className="group flex items-center gap-4 rounded-2xl border border-white/10 bg-zinc-950 p-5 transition hover:border-red-500/50"
-                >
-                  <div className="rounded-xl bg-red-600/10 p-3 text-red-400">
-                    <Icon name="shopping" size={23} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold">Continue Shopping</h3>
-                    <p className="mt-1 text-sm text-zinc-400">
-                      Explore the Palmyra collection.
-                    </p>
-                  </div>
-                  <Icon name="arrow" size={19} />
-                </Link>
+                  icon="shopping"
+                  title="Continue Shopping"
+                  description="Explore the Palmyra collection."
+                />
 
-                <div className="rounded-2xl border border-white/10 bg-zinc-950 p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="rounded-xl bg-white/5 p-3 text-zinc-300">
-                      <Icon name="package" size={23} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">My Orders</h3>
-                      <p className="mt-1 text-sm text-zinc-400">
-                        Your purchase history will appear here once order history is connected.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <ActionCard
+                  href="/orders"
+                  icon="package"
+                  title="My Orders"
+                  description="View your purchase history and order details."
+                />
 
-                <div className="rounded-2xl border border-white/10 bg-zinc-950 p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="rounded-xl bg-white/5 p-3 text-zinc-300">
-                      <Icon name="map" size={23} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Saved Addresses</h3>
-                      <p className="mt-1 text-sm text-zinc-400">
-                        Address management will be connected to secure saved customer data.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <ActionCard
+                  href="/addresses"
+                  icon="map"
+                  title="Saved Addresses"
+                  description="Add, update, and manage delivery addresses."
+                />
 
-                <div className="rounded-2xl border border-white/10 bg-zinc-950 p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="rounded-xl bg-white/5 p-3 text-zinc-300">
-                      <Icon name="shield" size={23} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Account Security</h3>
-                      <p className="mt-1 text-sm text-zinc-400">
-                        Your sign-in is managed by Supabase Authentication.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <ActionCard
+                  href="/profile/security"
+                  icon="shield"
+                  title="Account Security"
+                  description="Change your password and protect your account."
+                />
               </div>
             </section>
 
-            {/* Sign Out */}
             <section className="mt-8 flex flex-col gap-4 rounded-2xl border border-red-500/20 bg-red-950/10 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <div>
                 <h2 className="font-semibold">Sign out of Palmyra</h2>
@@ -487,13 +517,14 @@ export default function ProfilePage() {
             </section>
           </>
         ) : (
-          /* Signed Out */
           <section className="mx-auto mt-16 max-w-lg rounded-3xl border border-white/10 bg-zinc-950 p-8 text-center sm:p-12">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl border border-red-500/30 bg-red-600/10 text-red-400">
               <Icon name="user" size={38} />
             </div>
 
-            <h1 className="mt-6 text-3xl font-bold">Your Palmyra Account</h1>
+            <h1 className="mt-6 text-3xl font-bold">
+              Your Palmyra Account
+            </h1>
             <p className="mt-3 leading-7 text-zinc-400">
               Sign in to manage your profile and access your account.
             </p>
