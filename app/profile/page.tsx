@@ -22,7 +22,8 @@ function Icon({
     | "mail"
     | "calendar"
     | "arrow"
-    | "check";
+    | "check"
+    | "trash";
   size?: number;
 }) {
   const common = {
@@ -60,6 +61,8 @@ function Icon({
       return <svg {...common}><path d="M5 12h14m-6-6 6 6-6 6" /></svg>;
     case "check":
       return <svg {...common}><path d="m5 12 4 4L19 6" /></svg>;
+    case "trash":
+      return <svg {...common}><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="m19 6-1 14H6L5 6" /><path d="M10 11v5m4-5v5" /></svg>;
   }
 }
 
@@ -117,6 +120,8 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -225,6 +230,37 @@ export default function ProfilePage() {
       setError("Unable to sign out. Please try again.");
     } finally {
       setSigningOut(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setError("");
+    setSuccess("");
+    setDeletingAccount(true);
+
+    try {
+      const response = await fetch("/api/account/delete", {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(
+          result.error ?? "Unable to delete your account. Please try again."
+        );
+        return;
+      }
+
+      const supabase = createClient();
+      await supabase.auth.signOut();
+
+      router.replace("/");
+      router.refresh();
+    } catch {
+      setError("Unable to delete your account. Please try again.");
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -497,7 +533,7 @@ export default function ProfilePage() {
               </div>
             </section>
 
-            <section className="mt-8 flex flex-col gap-4 rounded-2xl border border-red-500/20 bg-red-950/10 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <section className="mt-8 flex flex-col gap-4 rounded-2xl border border-white/10 bg-zinc-950 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <div>
                 <h2 className="font-semibold">Sign out of Palmyra</h2>
                 <p className="mt-1 text-sm text-zinc-400">
@@ -514,6 +550,74 @@ export default function ProfilePage() {
                 <Icon name="logout" size={18} />
                 {signingOut ? "Signing out..." : "Sign Out"}
               </button>
+            </section>
+
+            {/* Delete Account */}
+            <section className="mt-5 rounded-2xl border border-red-500/30 bg-red-950/10 p-5 sm:p-6">
+              <div className="flex items-start gap-4">
+                <div className="shrink-0 rounded-xl bg-red-600/10 p-3 text-red-400">
+                  <Icon name="trash" size={22} />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-semibold text-red-400">
+                    Delete Account
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">
+                    Permanently delete your Palmyra login account. This
+                    action cannot be undone. Some order and payment
+                    records may need to be retained where legally required.
+                  </p>
+
+                  {!showDeleteConfirm ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError("");
+                        setSuccess("");
+                        setShowDeleteConfirm(true);
+                      }}
+                      className="mt-4 inline-flex items-center gap-2 rounded-xl border border-red-500/50 px-5 py-3 text-sm font-semibold text-red-400 transition hover:bg-red-500/10"
+                    >
+                      <Icon name="trash" size={17} />
+                      Delete My Account
+                    </button>
+                  ) : (
+                    <div className="mt-5 rounded-xl border border-red-500/20 bg-black/30 p-4">
+                      <p className="text-sm font-semibold">
+                        Are you sure you want to permanently delete your account?
+                      </p>
+
+                      <p className="mt-2 text-sm text-zinc-400">
+                        You will lose access to this Palmyra account.
+                      </p>
+
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={handleDeleteAccount}
+                          disabled={deletingAccount}
+                          className="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {deletingAccount
+                            ? "Deleting..."
+                            : "Yes, Delete Account"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteConfirm(false)}
+                          disabled={deletingAccount}
+                          className="rounded-xl border border-white/15 px-5 py-3 text-sm font-semibold transition hover:bg-white/5 disabled:opacity-60"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </section>
           </>
         ) : (
