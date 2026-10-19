@@ -12,8 +12,8 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [orderId, setOrderId] = useState<string | number | null>(null);
-
   const [paymentMethod, setPaymentMethod] = useState("cod");
+
   const subtotal = items.reduce(
     (total, item) => total + item.price * item.quantity,
     0
@@ -23,6 +23,11 @@ export default function CheckoutPage() {
     event.preventDefault();
 
     if (submitting || orderId !== null) return;
+
+    if (items.length === 0) {
+      setError("Your cart is empty.");
+      return;
+    }
 
     setSubmitting(true);
     setError("");
@@ -49,20 +54,22 @@ export default function CheckoutPage() {
       }));
 
       const supabase = createClient();
-const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-const response = await fetch("/api/orders", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    ...(session?.access_token
-      ? { Authorization: `Bearer ${session.access_token}` }
-      : {}),
-  },
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : {}),
+        },
         body: JSON.stringify({
-         customer,
-         items: orderItems,
-         paymentMethod,
+          customer,
+          items: orderItems,
+          paymentMethod,
         }),
       });
 
@@ -76,7 +83,7 @@ const response = await fetch("/api/orders", {
 
       if (!result.success || result.orderId == null) {
         throw new Error(
-          "The server did not return an order confirmation. Please check your orders before trying again."
+          "Order confirmation was not received. Check your orders before trying again."
         );
       }
 
@@ -129,9 +136,7 @@ const response = await fetch("/api/orders", {
           ← Back to Cart
         </Link>
 
-        <h1 className="mt-6 text-3xl font-bold sm:text-4xl">
-          Checkout
-        </h1>
+        <h1 className="mt-6 text-3xl font-bold sm:text-4xl">Checkout</h1>
         <p className="mt-2 text-gray-400">
           Enter your details for delivery.
         </p>
@@ -147,12 +152,10 @@ const response = await fetch("/api/orders", {
             <p className="mt-2 text-gray-200">
               Your Palmyra order number is:
             </p>
-            <p className="mt-1 text-2xl font-bold">
-              #{orderId}
-            </p>
+            <p className="mt-1 text-2xl font-bold">#{orderId}</p>
             <p className="mt-3 text-sm text-gray-300">
               Your order details have been saved. No payment has been taken.
-              Delivery and payment arrangements are not yet enabled.
+              Payment and delivery arrangements are not yet enabled.
             </p>
             <Link
               href="/store"
@@ -238,9 +241,7 @@ const response = await fetch("/api/orders", {
               </section>
 
               <section>
-                <h2 className="mb-5 text-xl font-semibold">
-                  Delivery Address
-                </h2>
+                <h2 className="mb-5 text-xl font-semibold">Delivery Address</h2>
 
                 <div className="space-y-4">
                   <div>
@@ -325,6 +326,28 @@ const response = await fetch("/api/orders", {
                 </div>
               </section>
 
+              <section>
+                <h2 className="mb-4 text-xl font-semibold">Payment Method</h2>
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/20 bg-black p-4">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="cod"
+                    checked={paymentMethod === "cod"}
+                    onChange={(event) => setPaymentMethod(event.target.value)}
+                    className="accent-red-600"
+                  />
+                  <span>
+                    <span className="block font-medium">
+                      Cash on Delivery
+                    </span>
+                    <span className="mt-1 block text-sm text-gray-400">
+                      Payment arrangements are not active yet.
+                    </span>
+                  </span>
+                </label>
+              </section>
+
               <button
                 type="submit"
                 disabled={submitting}
@@ -334,8 +357,8 @@ const response = await fetch("/api/orders", {
               </button>
 
               <p className="text-xs leading-5 text-gray-500">
-                Your order details will be sent securely to the Palmyra order
-                API and saved if the request succeeds. Payment is not enabled.
+                Your order will be saved when the request succeeds. No payment
+                will be collected by this checkout.
               </p>
             </form>
 
@@ -376,12 +399,14 @@ const response = await fetch("/api/orders", {
                   <span>Subtotal</span>
                   <span>₹{subtotal.toLocaleString("en-IN")}</span>
                 </div>
+
                 <div className="flex justify-between gap-3 text-gray-400">
                   <span>Delivery</span>
                   <span>Calculated later</span>
                 </div>
+
                 <div className="flex justify-between gap-3 border-t border-white/10 pt-4 text-lg font-bold">
-                  <span>Subtotal before delivery</span>
+                  <span>Total before delivery</span>
                   <span>₹{subtotal.toLocaleString("en-IN")}</span>
                 </div>
               </div>
