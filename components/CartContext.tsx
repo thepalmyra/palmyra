@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -31,10 +32,38 @@ type CartContextType = {
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+
 const GUEST_KEY = "palmyra-cart";
+const OWNER_KEY = "palmyra-cart-owner";
 
 export function cartItemKey(item: CartItem) {
   return `${item.id}::${item.color}::${item.size}`;
+}
+
+function readCart(value: string | null): CartItem[] {
+  if (!value) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter(
+      (item): item is CartItem =>
+        item !== null &&
+        typeof item === "object" &&
+        typeof item.id === "string" &&
+        typeof item.name === "string" &&
+        typeof item.price === "number" &&
+        Number.isFinite(item.price) &&
+        typeof item.image === "string" &&
+        typeof item.color === "string" &&
+        typeof item.size === "string" &&
+        Number.isInteger(item.quantity) &&
+        item.quantity > 0
+    );
+  } catch {
+    return [];
+  }
 }
 
 function mergeCarts(...carts: CartItem[][]): CartItem[] {
@@ -57,101 +86,94 @@ function mergeCarts(...carts: CartItem[][]): CartItem[] {
   return [...merged.values()];
 }
 
-function readGuestCart(): CartItem[] {
-  try {
-    const saved = localStorage.getItem(GUEST_KEY);
-    if (!saved) return [];
-
-    const parsed: unknown = JSON.parse(saved);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.filter(
-      (item): item is CartItem =>
-        item !== null &&
-        typeof item === "object" &&
-        typeof item.id === "string" &&
-        typeof item.name === "string" &&
-        typeof item.price === "number" &&
-        typeof item.image === "string" &&
-        typeof item.color === "string" &&
-        typeof item.size === "string" &&
-        Number.isInteger(item.quantity) &&
-        item.quantity > 0
-    );
-  } catch {
-    return [];
-  }
-}
-
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
+  const generation = useRef(0);
+  const activeUser = useRef<string | null>(null);
+  const initialized = useRef(false);
+
   useEffect(() => {
     const supabase = createClient();
     let active = true;
-    let revision = 0;
-    let currentUserId: string | null = null;
-    let busy = false;
 
     async function loadCart(nextUserId: string | null) {
-      const task = ++revision;
-      busy = true;
-      currentUserId = nextUserId;
+      const requestId = ++generation.current;
 
-      if (active) {
-        setReady(false);
-        setUserId(nextUserId);
-      }
+      setReady(false);
+      setUserId(nextUserId);
+      activeUser.current = nextUserId;
 
       try {
-        if (!nextUserId) {
-          const guestItems = readGuestCart();
+        let nextItems: CartItem[];
 
-          if (active && task === revision) {
-            setItems(guestItems);
-          }
-          return;
-        }
+        if (nextUserId) {
+          const { data, error } = await supabase
+            .from("customer_carts")
+            .select("items")
+            .eq("user_id", nextUserId)
+            .maybeSingle();
 
-        const { data, error } = await supabase
-          .from("customer_carts")
-          .select("items")
-          .eq("user_id", nextUserId)
-          .maybeSingle();
+          if (error) throw error;
+          if (!active || requestId !== generation.current) return;
 
-        if (error) throw error;
-
-        if (!active || task !== revision) return;
-
-        const savedItems = Array.isArray(data?.items)
-          ? (data.items as CartItem[])
-          : [];
-
-        const guestItems = readGuestCart();
-        const combined = mergeCarts(savedItems, guestItems);
-
-        setItems(combined);
-
-        const { error: saveError } = await supabase
-          .from("customer_carts")
-          .upsert(
-            { user_id: nextUserId, items: combined },
-            { onConflict: "user_id" }
+          const customerItems = readCart(
+            JSON.stringify(data?.items ?? [])
           );
 
-        if (saveError) throw saveError;
+          // Only merge items explicitly identified as a guest cart.
+          const isGuestCart =
+            localStorage.getItem(OWNER_KEY) === "guest";
 
-        if (active && task === revision) {
+          const guestItems = isGuestCart
+            ? readCart(localStorage.getItem(GUEST_KEY))
+            : [];
+
+          nextItems = mergeCarts(customerItems, guestItems);
+
+          const { error: saveError } = await supabase
+            .from("customer_carts")
+            .upsert(
+              {
+                user_id: nextUserId,
+                items: nextItems,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "user_id" }
+            );
+
+          if (saveError) throw saveError;
+          if (!active || requestId !== generation.current) return;
+
           localStorage.removeItem(GUEST_KEY);
+          localStorage.setItem(OWNER_KEY, nextUserId);
+        } else {
+          const owner = localStorage.getItem(OWNER_KEY);
+
+          // Never restore a previous signed-in customer's cart as a guest cart.
+          nextItems =
+            owner === "guest" || owner === null
+              ? readCart(localStorage.getItem(GUEST_KEY))
+              : [];
+
+          localStorage.setItem(OWNER_KEY, "guest");
+          localStorage.setItem(GUEST_KEY, JSON.stringify(nextItems));
         }
+
+        if (!active || requestId !== generation.current) return;
+
+        setItems(nextItems);
+        initialized.current = true;
+        setReady(true);
       } catch (error) {
         console.error("Unable to sync Palmyra cart:", error);
-      } finally {
-        if (active && task === revision) {
-          setReady(true);
-          busy = false;
+
+        // Do not mark the cart ready after a failed cloud load:
+        // that could overwrite the customer's saved cart.
+        if (active && requestId === generation.current) {
+          setReady(false);
         }
       }
     }
@@ -162,8 +184,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (!active) return;
 
       if (error) {
-        console.error("Unable to identify cart customer:", error);
-        await loadCart(null);
+        console.error("Unable to check the signed-in customer:", error);
         return;
       }
 
@@ -175,14 +196,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!active) return;
+      if (!active || event === "INITIAL_SESSION") return;
 
       const nextId = session?.user?.id ?? null;
 
-      if (event === "INITIAL_SESSION") return;
-      if (nextId === currentUserId && !busy) return;
+      if (nextId === activeUser.current) return;
 
-      // Defer Supabase requests until the auth callback has returned.
+      // Run after the auth callback returns.
       setTimeout(() => {
         if (active) void loadCart(nextId);
       }, 0);
@@ -190,35 +210,42 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     return () => {
       active = false;
-      revision++;
+      generation.current++;
       subscription.unsubscribe();
     };
   }, []);
 
+  // Only guest carts are stored in localStorage.
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || userId !== null) return;
 
     try {
-      if (userId) {
-        localStorage.setItem(GUEST_KEY, JSON.stringify(items));
-      } else {
-        localStorage.setItem(GUEST_KEY, JSON.stringify(items));
-      }
+      localStorage.setItem(GUEST_KEY, JSON.stringify(items));
+      localStorage.setItem(OWNER_KEY, "guest");
     } catch (error) {
-      console.error("Unable to save local cart:", error);
+      console.error("Unable to save guest cart:", error);
     }
   }, [items, ready, userId]);
 
+  // Signed-in carts are saved only to the authenticated customer's Supabase row.
   useEffect(() => {
-    if (!ready || !userId) return;
+    if (!ready || !userId || !initialized.current) return;
 
     const supabase = createClient();
+    const savingUserId = userId;
+    const savingItems = items;
 
     const timer = setTimeout(async () => {
+      if (activeUser.current !== savingUserId) return;
+
       const { error } = await supabase
         .from("customer_carts")
         .upsert(
-          { user_id: userId, items },
+          {
+            user_id: savingUserId,
+            items: savingItems,
+            updated_at: new Date().toISOString(),
+          },
           { onConflict: "user_id" }
         );
 
