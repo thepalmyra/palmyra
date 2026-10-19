@@ -567,7 +567,7 @@ export default function AddressesPage() {
                           type="button"
                           disabled={busyId === item.id}
                           onClick={() => setDefaultAddress(item.id)}
-                          className="text-sm text-gray-400 transition hover:text-white disabled:opacity-50"
+                          className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-red-500/40 bg-red-600/10 px-4 py-2 text-sm font-semibold text-red-300 transition hover:border-red-500 hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {busyId === item.id ? "Updating..." : "Set as default"}
                         </button>
