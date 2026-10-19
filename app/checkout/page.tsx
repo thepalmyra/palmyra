@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useCart } from "@/components/CartContext";
+import { createClient } from "@/lib/supabase/client";
 
 export default function CheckoutPage() {
   const { items, ready } = useCart();
@@ -47,11 +48,17 @@ export default function CheckoutPage() {
         quantity: item.quantity,
       }));
 
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const supabase = createClient();
+const { data: { session } } = await supabase.auth.getSession();
+
+const response = await fetch("/api/orders", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    ...(session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}),
+  },
         body: JSON.stringify({
          customer,
          items: orderItems,
