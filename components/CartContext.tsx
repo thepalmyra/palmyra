@@ -33,8 +33,7 @@ type CartContextType = {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const GUEST_KEY = "palmyra-cart";
-const OWNER_KEY = "palmyra-cart-owner";
+const GUEST_KEY = "palmyra-guest-cart-v3";
 
 export function cartItemKey(item: CartItem) {
   return `${item.id}::${item.color}::${item.size}`;
@@ -66,50 +65,30 @@ function readCart(value: string | null): CartItem[] {
   }
 }
 
-function mergeCarts(...carts: CartItem[][]): CartItem[] {
-  const merged = new Map<string, CartItem>();
-
-  for (const cart of carts) {
-    for (const item of cart) {
-      const key = cartItemKey(item);
-      const existing = merged.get(key);
-
-      merged.set(
-        key,
-        existing
-          ? { ...existing, quantity: existing.quantity + item.quantity }
-          : { ...item }
-      );
-    }
-  }
-
-  return [...merged.values()];
-}
-
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
-  const generation = useRef(0);
-  const activeUser = useRef<string | null>(null);
-  const initialized = useRef(false);
+  const generationRef = useRef(0);
+  const activeUserRef = useRef<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
     let active = true;
 
     async function loadCart(nextUserId: string | null) {
-      const requestId = ++generation.current;
+      const requestId = ++generationRef.current;
 
+      activeUserRef.current = nextUserId;
       setReady(false);
       setUserId(nextUserId);
-      activeUser.current = nextUserId;
 
       try {
         let nextItems: CartItem[];
 
         if (nextUserId) {
+          // Signed-in users load only their own Supabase cart.
           const { data, error } = await supabase
             .from("customer_carts")
             .select("items")
@@ -117,22 +96,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
             .maybeSingle();
 
           if (error) throw error;
-          if (!active || requestId !== generation.current) return;
 
-          const customerItems = readCart(
-            JSON.stringify(data?.items ?? [])
-          );
+          if (!active || requestId !== generationRef.current) return;
 
-          // Only merge items explicitly identified as a guest cart.
-          const isGuestCart =
-            localStorage.getItem(OWNER_KEY) === "guest";
+          nextItems = readCart(JSON.stringify(data?.items ?? []));
 
-          const guestItems = isGuestCart
-            ? readCart(localStorage.getItem(GUEST_KEY))
-            : [];
-
-          nextItems = mergeCarts(customerItems, guestItems);
-
+          // Do not merge guest or previously cached account items.
           const { error: saveError } = await supabase
             .from("customer_carts")
             .upsert(
@@ -145,34 +114,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
             );
 
           if (saveError) throw saveError;
-          if (!active || requestId !== generation.current) return;
 
+          if (!active || requestId !== generationRef.current) return;
+
+          // Discard any legacy local cart from the old implementation.
+          localStorage.removeItem("palmyra-cart");
+          localStorage.removeItem("palmyra-cart-owner");
           localStorage.removeItem(GUEST_KEY);
-          localStorage.setItem(OWNER_KEY, nextUserId);
         } else {
-          const owner = localStorage.getItem(OWNER_KEY);
-
-          // Never restore a previous signed-in customer's cart as a guest cart.
-          nextItems =
-            owner === "guest" || owner === null
-              ? readCart(localStorage.getItem(GUEST_KEY))
-              : [];
-
-          localStorage.setItem(OWNER_KEY, "guest");
-          localStorage.setItem(GUEST_KEY, JSON.stringify(nextItems));
+          // Guests have a separate storage key.
+          nextItems = readCart(localStorage.getItem(GUEST_KEY));
         }
 
-        if (!active || requestId !== generation.current) return;
+        if (!active || requestId !== generationRef.current) return;
 
         setItems(nextItems);
-        initialized.current = true;
         setReady(true);
       } catch (error) {
-        console.error("Unable to sync Palmyra cart:", error);
+        console.error("Unable to load Palmyra cart:", error);
 
-        // Do not mark the cart ready after a failed cloud load:
-        // that could overwrite the customer's saved cart.
-        if (active && requestId === generation.current) {
+        // Keep ready=false so we never overwrite a saved cart
+        // when loading it from Supabase fails.
+        if (active && requestId === generationRef.current) {
           setReady(false);
         }
       }
@@ -184,7 +147,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (!active) return;
 
       if (error) {
-        console.error("Unable to check the signed-in customer:", error);
+        console.error("Unable to check the signed-in user:", error);
         return;
       }
 
@@ -200,9 +163,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       const nextId = session?.user?.id ?? null;
 
-      if (nextId === activeUser.current) return;
+      if (nextId === activeUserRef.current) return;
 
-      // Run after the auth callback returns.
       setTimeout(() => {
         if (active) void loadCart(nextId);
       }, 0);
@@ -210,33 +172,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     return () => {
       active = false;
-      generation.current++;
+      generationRef.current++;
       subscription.unsubscribe();
     };
   }, []);
 
-  // Only guest carts are stored in localStorage.
+  // Save to localStorage only for guests.
   useEffect(() => {
     if (!ready || userId !== null) return;
 
     try {
       localStorage.setItem(GUEST_KEY, JSON.stringify(items));
-      localStorage.setItem(OWNER_KEY, "guest");
     } catch (error) {
       console.error("Unable to save guest cart:", error);
     }
   }, [items, ready, userId]);
 
-  // Signed-in carts are saved only to the authenticated customer's Supabase row.
+  // Save signed-in carts only to that customer's Supabase row.
   useEffect(() => {
-    if (!ready || !userId || !initialized.current) return;
+    if (!ready || !userId) return;
 
     const supabase = createClient();
     const savingUserId = userId;
     const savingItems = items;
 
     const timer = setTimeout(async () => {
-      if (activeUser.current !== savingUserId) return;
+      if (activeUserRef.current !== savingUserId) return;
 
       const { error } = await supabase
         .from("customer_carts")
