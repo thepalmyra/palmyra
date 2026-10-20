@@ -67,33 +67,24 @@ export const products: Product[] = [
     },
   },
   {
-    id: "jersey",
-    name: "Palmyra Sports Jersey",
-    price: 799,
+    id: "signature-raglan-tee",
+    name: "Palmyra Signature Raglan Tee",
+    price: 699,
     category: "Sportswear",
     description:
-      "A sports-inspired jersey designed for movement and everyday style.",
-    image:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=85",
+      "Meet the Palmyra Signature Raglan Tee. Made from 100% cotton at 180 GSM, this long-sleeve raglan features contrasting sleeves and a classic fit for everyday comfort and streetwear style. Free delivery is included in the listed price.",
+    image: "/public-products/tshirt-black-white.jpg",
     images: [
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=85",
+      "/public-products/tshirt-black-white.jpg",
+      "/public-products/tshirt-black-ash.jpg",
+      "/public-products/tshirt-white-black.jpg",
     ],
-    sizes: ["S", "M", "L", "XL", "XXL"],
-    colors: ["Black", "White", "Red"],
-  },
-  {
-    id: "headband-scarf",
-    name: "Palmyra Headband / Scarf",
-    price: 299,
-    category: "Accessories",
-    description:
-      "A versatile accessory for sports, workouts and everyday styling.",
-    image:
-      "https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&w=900&q=85",
-    images: [
-      "https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&w=900&q=85",
-    ],
-    sizes: ["One Size"],
-    colors: ["Black"],
+    sizes: ["S", "M", "L", "XL"],
+    colors: ["Black + White", "Black + Ash", "White + Black"],
+    colorImages: {
+      "Black + White": "/public-products/tshirt-black-white.jpg",
+      "Black + Ash": "/public-products/tshirt-black-ash.jpg",
+      "White + Black": "/public-products/tshirt-white-black.jpg",
+    },
   },
 ];
