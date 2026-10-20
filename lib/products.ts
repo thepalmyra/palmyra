@@ -67,24 +67,24 @@ export const products: Product[] = [
     },
   },
   {
-    id: "signature-raglan-tee",
-    name: "Palmyra Signature Raglan Tee",
-    price: 699,
-    category: "Sportswear",
-    description:
-      "Meet the Palmyra Signature Raglan Tee. Made from 100% cotton at 180 GSM, this long-sleeve raglan features contrasting sleeves and a classic fit for everyday comfort and streetwear style. Free delivery is included in the listed price.",
-    image: "/public-products/tshirt-black-white.jpg",
-    images: [
-      "/public/products/tshirt-black-white.jpg",
-      "/public/products/tshirt-black-ash.jpg",
-      "/public/products/tshirt-white-black.jpg",
-    ],
-    sizes: ["S", "M", "L", "XL"],
-    colors: ["Black + White", "Black + Ash", "White + Black"],
-    colorImages: {
-      "Black + White": "/public-products/tshirt-black-white.jpg",
-      "Black + Ash": "/public-products/tshirt-black-ash.jpg",
-      "White + Black": "/public-products/tshirt-white-black.jpg",
-    },
+  id: "signature-raglan-tee",
+  name: "Palmyra Signature Raglan Tee",
+  price: 699,
+  category: "Sportswear",
+  description:
+    "Meet the Palmyra Signature Raglan Tee. Made from 100% cotton at 180 GSM, this long-sleeve raglan features contrasting sleeves and a classic fit for everyday comfort and streetwear style. Free delivery is included in the listed price.",
+  image: "/products/tshirt-black-white.jpg",
+  images: [
+    "/products/tshirt-black-white.jpg",
+    "/products/tshirt-black-ash.jpg",
+    "/products/tshirt-white-black.jpg",
+  ],
+  sizes: ["S", "M", "L", "XL"],
+  colors: ["Black + White", "Black + Ash", "White + Black"],
+  colorImages: {
+    "Black + White": "/products/tshirt-black-white.jpg",
+    "Black + Ash": "/products/tshirt-black-ash.jpg",
+    "White + Black": "/products/tshirt-white-black.jpg",
   },
+},
 ];
