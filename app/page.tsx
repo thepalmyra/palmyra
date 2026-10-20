@@ -8,7 +8,7 @@ import { videos } from "@/lib/videos";
 const products = [
   {
     id: "cap",
-    name: "Palmyra Sports Cap",
+    name: "Palmyra Performance Cap",
     price: "₹499",
     category: "ACCESSORIES",
     image:
@@ -31,9 +31,9 @@ const products = [
       "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=85",
   },
   {
-    id: "headband-scarf",
-    name: "Palmyra Headband / Scarf",
-    price: "₹299",
+    id: "unisex-headband",
+    name: "Palmyra Unisex Sports Headband",
+    price: "₹249",
     category: "ACCESSORIES",
     image:
       "https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&w=800&q=85",

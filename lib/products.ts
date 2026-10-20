@@ -15,7 +15,7 @@ export type Product = {
 export const products: Product[] = [
   {
     id: "cap",
-    name: "Palmyra Sports Cap",
+    name: "Palmyra Performance Cap",
     price: 499,
     category: "Accessories",
     description:
@@ -43,8 +43,7 @@ export const products: Product[] = [
   {
     id: "sports-bag",
     name: "Palmyra Drawstring Bag",
-    price: 499,
-    originalPrice: 599,
+    price: 599,
     category: "Accessories",
     description:
       "Carry your essentials in the Palmyra Drawstring Bag. A lightweight, versatile bag available in five colors.",
