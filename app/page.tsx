@@ -4,46 +4,42 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { videos } from "@/lib/videos";
+import { products as storeProducts } from "@/lib/products";
 
-const products = [
-  {
-    id: "cap",
-    name: "Palmyra Performance Cap",
-    price: "₹499",
-    category: "ACCESSORIES",
-    image:
-      "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=85",
-  },
-  {
-    id: "sports-bag",
-    name: "Palmyra Sports Bag",
-    price: "₹599",
-    category: "SPORTS GEAR",
-    image:
-      "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=85",
-  },
-  {
-    id: "signature-raglan-tee",
-    name: "Palmyra Signature Raglan Tee",
-    price: "₹699",
-    category: "SPORTSWEAR",
-    image:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=85",
-  },
-  {
-    id: "unisex-headband",
-    name: "Palmyra Unisex Sports Headband",
-    price: "₹249",
-    category: "ACCESSORIES",
-    image:
-      "https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&w=800&q=85",
-  },
-];
-
-function thumbnail(video: any) {
+function thumbnail(video: any): string {
   return video.type === "youtube"
     ? `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`
     : video.thumbnail;
+}
+
+// Online sportswear and accessory reference photography.
+function getProductImage(name: string): string {
+  const productName = name.toLowerCase();
+
+  if (productName.includes("cap")) {
+    return "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=900&q=85";
+  }
+
+  if (
+    productName.includes("bag") ||
+    productName.includes("drawstring")
+  ) {
+    return "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=85";
+  }
+
+  if (
+    productName.includes("raglan") ||
+    productName.includes("tee") ||
+    productName.includes("shirt")
+  ) {
+    return "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=85";
+  }
+
+  if (productName.includes("headband")) {
+    return "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&fit=crop&w=900&q=85";
+  }
+
+  return "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=85";
 }
 
 export default function Home() {
@@ -58,220 +54,378 @@ export default function Home() {
     if (palmyraVideos.length <= 1) return;
 
     const timer = setInterval(() => {
-      setCurrentVideo((prev) => (prev + 1) % palmyraVideos.length);
+      setCurrentVideo((previous) => (previous + 1) % palmyraVideos.length);
     }, 10000);
 
     return () => clearInterval(timer);
   }, [palmyraVideos.length]);
 
-  if (palmyraVideos.length === 0) {
-    return (
-      <main className="min-h-screen bg-black p-8 text-white">
-        Add videos to lib/videos.ts to display the homepage.
-      </main>
-    );
-  }
-
   const featuredVideo = palmyraVideos[currentVideo];
 
+  const videoCategories = ["Palmyra", "Football"];
+
   return (
-    <main className="min-h-screen bg-black pb-24 text-white">
-      {/* PALMYRA INTRO BANNER */}
-      <section className="relative flex min-h-[580px] items-center overflow-hidden md:min-h-[750px]">
-        <video
-          key={featuredVideo.id}
-          src={`/videos/${featuredVideo.id}.mp4`}
-          className="absolute inset-0 h-full w-full object-cover"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-        />
+    <main className="min-h-screen overflow-hidden bg-black pb-16 text-white">
+      {/* HERO */}
+      <section className="relative flex min-h-[600px] items-center overflow-hidden md:min-h-[760px]">
+        {featuredVideo ? (
+          <video
+            key={featuredVideo.id}
+            src={`/videos/${featuredVideo.id}.mp4`}
+            className="absolute inset-0 h-full w-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+          />
+        ) : (
+          <img
+            src="https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=2000&q=85"
+            alt="Athletes training on a running track"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
 
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/20" />
 
-        <div className="relative z-10 max-w-4xl px-6 py-24 md:px-16">
-          <p className="mb-4 text-sm font-semibold tracking-[0.35em] text-red-500">
-            INTRODUCING PALMYRA
-          </p>
-
-          <h1 className="text-5xl font-bold leading-tight tracking-tight md:text-7xl">
-            More than a brand.
-            <br />
-            A way of life.
-          </h1>
-
-          <p className="mt-5 max-w-xl text-base leading-7 text-gray-300 md:text-lg">
-            Discover Palmyra — sportswear, accessories, original
-            content and a community built around your passion.
-          </p>
-
-          <div className="mt-8 flex flex-wrap gap-4">
-            <Link
-              href={`/watch/${featuredVideo.id}`}
-              className="rounded-lg bg-red-600 px-7 py-4 font-bold transition hover:bg-red-700"
-            >
-              ▶ Watch Featured Video
-            </Link>
-
-            <Link
-              href="/store"
-              className="rounded-lg border border-white px-7 py-4 font-bold transition hover:bg-white hover:text-black"
-            >
-              Shop Palmyra →
-            </Link>
+        <div className="relative z-10 max-w-5xl px-5 py-24 sm:px-8 md:px-16">
+          <div className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2">
+            <span className="h-2 w-2 rounded-full bg-red-500" />
+            <span className="text-xs font-semibold tracking-[0.2em] text-red-300">
+              ENTER THE PALMYRA WORLD
+            </span>
           </div>
 
-          <p className="mt-6 text-sm text-gray-400">
-            Featured: {featuredVideo.title}
+          <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[1.05] tracking-tight sm:text-6xl md:text-8xl">
+            More than a brand.
+            <span className="mt-2 block text-red-500">
+              A way of life.
+            </span>
+          </h1>
+
+          <p className="mt-6 max-w-xl text-base leading-7 text-gray-300 md:text-lg">
+            Discover sportswear, everyday accessories, original
+            entertainment and a community driven by passion.
           </p>
+
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Link
+              href="/store"
+              className="rounded-xl bg-red-600 px-6 py-4 font-bold transition hover:bg-red-700"
+            >
+              Shop Palmyra <span aria-hidden="true">→</span>
+            </Link>
+
+            {featuredVideo && (
+              <Link
+                href={`/watch/${featuredVideo.id}`}
+                className="rounded-xl border border-white/30 bg-black/30 px-6 py-4 font-bold backdrop-blur-sm transition hover:border-white hover:bg-white hover:text-black"
+              >
+                <span aria-hidden="true">▶ </span>
+                Watch Featured Video
+              </Link>
+            )}
+
+            {!featuredVideo && (
+              <Link
+                href="/watch"
+                className="rounded-xl border border-white/30 bg-black/30 px-6 py-4 font-bold transition hover:bg-white hover:text-black"
+              >
+                Explore Videos <span aria-hidden="true">→</span>
+              </Link>
+            )}
+          </div>
+
+          {featuredVideo && (
+            <p className="mt-6 text-sm text-gray-400">
+              Now featuring:{" "}
+              <span className="font-semibold text-white">
+                {featuredVideo.title}
+              </span>
+            </p>
+          )}
+
+          <div className="mt-12 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/15 pt-6 text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
+            <span>Sportswear</span>
+            <span>Accessories</span>
+            <span>Entertainment</span>
+            <span>Community</span>
+          </div>
         </div>
       </section>
 
-      {/* VIDEO CATEGORIES */}
-      {["Palmyra", "Football"].map((category) => {
+      {/* BRAND PILLARS */}
+      <section className="border-y border-white/10 bg-zinc-950 px-5 py-8 md:px-10">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 md:grid-cols-4">
+          {[
+            {
+              number: "01",
+              title: "Sportswear",
+              description: "Made for your everyday movement.",
+            },
+            {
+              number: "02",
+              title: "Accessories",
+              description: "The details that define your style.",
+            },
+            {
+              number: "03",
+              title: "Original Content",
+              description: "Stories, sport and entertainment.",
+            },
+            {
+              number: "04",
+              title: "Community",
+              description: "Connected by a shared passion.",
+            },
+          ].map((item) => (
+            <div key={item.number} className="group">
+              <p className="text-xs font-bold tracking-widest text-red-500">
+                {item.number}
+              </p>
+              <h2 className="mt-2 text-base font-bold sm:text-lg">
+                {item.title}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                {item.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* VIDEO COLLECTIONS */}
+      {videoCategories.map((category) => {
         const categoryVideos = videos.filter(
           (video: any) => video.category === category
         );
 
+        if (categoryVideos.length === 0) return null;
+
         return (
           <section
             key={category}
-            className="px-5 py-10 md:px-10"
+            className="px-5 py-12 md:px-10 md:py-14"
           >
-            <div className="mb-6 flex items-center justify-between gap-4">
-              <h2 className="text-2xl font-bold md:text-3xl">
-                {category}
-              </h2>
-
-              <Link
-                href="/watch"
-                className="shrink-0 text-sm text-gray-400 transition hover:text-white"
-              >
-                Explore All →
-              </Link>
-            </div>
-
-            <div className="flex gap-5 overflow-x-auto pb-4">
-              {categoryVideos.map((video: any) => (
-                <Link
-                  key={video.id}
-                  href={`/watch/${video.id}`}
-                  className="w-[260px] flex-shrink-0 md:w-[320px]"
-                >
-                  <div className="overflow-hidden rounded-xl bg-zinc-900">
-                    <img
-                      src={thumbnail(video)}
-                      alt={video.title}
-                      className="aspect-video w-full object-cover transition duration-300 hover:scale-105"
-                    />
-                  </div>
-
-                  <h3 className="mt-3 font-semibold">
-                    {video.title}
-                  </h3>
-
-                  <p className="mt-1 text-sm text-gray-400">
-                    {video.description}
+            <div className="mx-auto max-w-7xl">
+              <div className="mb-7 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold tracking-[0.22em] text-red-500">
+                    WATCH ON PALMYRA
                   </p>
+                  <h2 className="mt-2 text-2xl font-bold md:text-3xl">
+                    {category}
+                  </h2>
+                  <p className="mt-2 text-sm text-gray-400">
+                    {category === "Football"
+                      ? "The game, the moments and the passion."
+                      : "Discover stories from the Palmyra world."}
+                  </p>
+                </div>
+
+                <Link
+                  href="/watch"
+                  className="shrink-0 text-sm font-semibold text-gray-300 transition hover:text-red-400"
+                >
+                  Explore All →
                 </Link>
-              ))}
+              </div>
+
+              <div className="flex gap-5 overflow-x-auto pb-4">
+                {categoryVideos.map((video: any) => (
+                  <Link
+                    key={video.id}
+                    href={`/watch/${video.id}`}
+                    className="group w-[260px] flex-shrink-0 sm:w-[300px] md:w-[340px]"
+                  >
+                    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900">
+                      <img
+                        src={thumbnail(video)}
+                        alt={video.title}
+                        loading="lazy"
+                        className="aspect-video w-full object-cover transition duration-500 group-hover:scale-105"
+                      />
+
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/30">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/40 bg-black/60 opacity-90 transition group-hover:scale-110">
+                          ▶
+                        </span>
+                      </div>
+                    </div>
+
+                    <h3 className="mt-4 font-semibold transition group-hover:text-red-400">
+                      {video.title}
+                    </h3>
+                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-gray-400">
+                      {video.description}
+                    </p>
+                  </Link>
+                ))}
+              </div>
             </div>
           </section>
         );
       })}
 
-      {/* PALMYRA PRODUCT COLLECTION */}
-      <section className="bg-zinc-950 px-5 py-12 md:px-10 md:py-16">
-        <div className="mb-8 flex items-end justify-between gap-4">
-          <div>
-            <p className="mb-2 text-xs font-semibold tracking-[0.25em] text-red-500">
-              THE PALMYRA COLLECTION
-            </p>
+      {/* PRODUCT COLLECTION */}
+      <section className="bg-zinc-950 px-5 py-14 md:px-10 md:py-20">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-9 flex flex-wrap items-end justify-between gap-5">
+            <div>
+              <p className="text-xs font-bold tracking-[0.25em] text-red-500">
+                THE PALMYRA COLLECTION
+              </p>
+              <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl md:text-5xl">
+                Find your style.
+              </h2>
+              <p className="mt-3 max-w-lg text-sm leading-6 text-gray-400 md:text-base">
+                Everyday essentials and sports-inspired gear for
+                wherever your journey takes you.
+              </p>
+            </div>
 
-            <h2 className="text-3xl font-bold md:text-4xl">
-              Trending Products
-            </h2>
-
-            <p className="mt-3 text-sm text-gray-400">
-              Gear up. Find your style. Make it yours.
-            </p>
+            <Link
+              href="/store"
+              className="rounded-lg border border-white/20 px-5 py-3 text-sm font-semibold transition hover:border-white hover:bg-white hover:text-black"
+            >
+              Shop All Products →
+            </Link>
           </div>
 
-          <Link
-            href="/store"
-            className="shrink-0 text-sm text-gray-300 transition hover:text-white"
-          >
-            Shop All →
-          </Link>
-        </div>
+          {storeProducts.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-black p-8 text-center">
+              <p className="text-gray-300">
+                New Palmyra products are coming soon.
+              </p>
+              <Link
+                href="/store"
+                className="mt-4 inline-block text-sm font-semibold text-red-400 hover:text-red-300"
+              >
+                Visit Store →
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 md:grid-cols-3 lg:grid-cols-4">
+              {storeProducts.map((product) => (
+                <Link
+                  key={product.id}
+                  href={`/store/${product.id}`}
+                  className="group min-w-0"
+                >
+                  <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900">
+                    <img
+                      src={getProductImage(product.name)}
+                      alt={`${product.name} — illustrative product reference`}
+                      loading="lazy"
+                      className="aspect-[3/4] w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
 
-        <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-4 md:gap-6">
-          {products.map((product) => (
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-12 sm:p-4 sm:pt-16">
+                      <span className="inline-flex rounded-full border border-white/20 bg-black/50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-white backdrop-blur-sm sm:text-[10px]">
+                        Palmyra Collection
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="mt-4 text-[9px] font-bold uppercase tracking-[0.18em] text-red-400 sm:text-[10px]">
+                    {product.category}
+                  </p>
+
+                  <h3 className="mt-2 line-clamp-2 text-sm font-semibold leading-5 transition group-hover:text-red-400 sm:text-base">
+                    {product.name}
+                  </h3>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="font-bold">
+                      ₹{product.price.toLocaleString("en-IN")}
+                    </span>
+
+                    {product.originalPrice &&
+                      product.originalPrice > product.price && (
+                        <span className="text-xs text-gray-500 line-through">
+                          ₹
+                          {product.originalPrice.toLocaleString("en-IN")}
+                        </span>
+                      )}
+                  </div>
+
+                  <p className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-gray-400 transition group-hover:text-white sm:text-sm">
+                    View Product
+                    <span className="transition-transform group-hover:translate-x-1">
+                      →
+                    </span>
+                  </p>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-12 text-center">
             <Link
-              key={product.id}
-              href={`/store/${product.id}`}
-              className="group min-w-0"
+              href="/store"
+              className="inline-flex items-center justify-center rounded-xl bg-white px-8 py-4 text-sm font-bold tracking-wide text-black transition hover:bg-red-500 hover:text-white"
             >
-              <div className="overflow-hidden rounded-xl bg-zinc-900">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="aspect-[3/4] w-full object-cover transition duration-500 group-hover:scale-105"
-                />
-              </div>
-
-              <p className="mt-4 text-[10px] tracking-widest text-gray-500">
-                {product.category}
-              </p>
-
-              <h3 className="mt-2 text-sm font-semibold md:text-base">
-                {product.name}
-              </h3>
-
-              <p className="mt-2 text-sm text-gray-300">
-                {product.price}
-              </p>
-
-              <p className="mt-3 text-xs text-gray-400 transition group-hover:text-white">
-                View Product →
-              </p>
+              EXPLORE THE COLLECTION <span className="ml-2">→</span>
             </Link>
-          ))}
-        </div>
-
-        <div className="mt-12 text-center">
-          <Link
-            href="/store"
-            className="inline-block rounded-lg bg-white px-8 py-4 font-bold text-black transition hover:bg-gray-200"
-          >
-            EXPLORE ALL PRODUCTS
-          </Link>
+          </div>
         </div>
       </section>
 
-      {/* BRAND + COMMUNITY */}
-      <section className="px-6 py-16 text-center md:py-20">
-        <p className="text-xs font-semibold tracking-[0.3em] text-red-500">
-          JOIN THE PALMYRA COMMUNITY
+      {/* COMMUNITY BANNER */}
+      <section className="px-5 py-16 md:px-10 md:py-24">
+        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-900">
+          <img
+            src="https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1800&q=85"
+            alt="Athletic training and sports lifestyle"
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover opacity-30"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-black/30" />
+
+          <div className="relative z-10 max-w-3xl px-6 py-14 sm:px-10 md:px-14 md:py-20">
+            <p className="text-xs font-bold tracking-[0.25em] text-red-400">
+              THIS IS PALMYRA
+            </p>
+
+            <h2 className="mt-4 text-3xl font-black leading-tight sm:text-4xl md:text-5xl">
+              Built around
+              <span className="block text-red-500">
+                your passion.
+              </span>
+            </h2>
+
+            <p className="mt-5 max-w-xl text-sm leading-7 text-gray-300 md:text-base">
+              Discover new products, watch original content and
+              become part of a community inspired by sport, style
+              and entertainment.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/store"
+                className="rounded-xl bg-red-600 px-6 py-4 font-bold transition hover:bg-red-700"
+              >
+                Discover the Store →
+              </Link>
+
+              <Link
+                href="/watch"
+                className="rounded-xl border border-white/30 px-6 py-4 font-bold transition hover:bg-white hover:text-black"
+              >
+                Explore Videos
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER CTA */}
+      <section className="border-t border-white/10 px-5 py-8 text-center">
+        <p className="text-xs tracking-wide text-gray-500">
+          PALMYRA · SPORTS · STYLE · ENTERTAINMENT
         </p>
-
-        <h2 className="mt-4 text-3xl font-bold md:text-4xl">
-          Built around your passion.
-        </h2>
-
-        <p className="mx-auto mt-4 max-w-xl leading-7 text-gray-400">
-          Discover our latest products, original videos and
-          upcoming collections.
-        </p>
-
-        <Link
-          href="/store"
-          className="mt-7 inline-block rounded-lg border border-white px-7 py-4 font-semibold transition hover:bg-white hover:text-black"
-        >
-          DISCOVER PALMYRA →
-        </Link>
       </section>
     </main>
   );
