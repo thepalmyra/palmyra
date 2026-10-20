@@ -23,9 +23,9 @@ const products = [
       "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=85",
   },
   {
-    id: "jersey",
-    name: "Palmyra Sports Jersey",
-    price: "₹799",
+    id: "signature-raglan-tee",
+    name: "Palmyra Signature Raglan Tee",
+    price: "₹699",
     category: "SPORTSWEAR",
     image:
       "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=85",
