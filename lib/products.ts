@@ -87,4 +87,16 @@ export const products: Product[] = [
     "White + Black": "/products/tshirt-white-black.jpg",
   },
 },
+{
+  id: "unisex-headband",
+  name: "Palmyra Unisex Sports Headband",
+  price: 249,
+  category: "Accessories",
+  description:
+    "A versatile unisex sports headband designed for workouts, running and everyday wear. Finished in white for a clean, minimal Palmyra look.",
+  image: "/products/headband-white.jpg",
+  images: ["/products/headband-white.jpg"],
+  sizes: ["One Size"],
+  colors: ["White"],
+},
 ];
