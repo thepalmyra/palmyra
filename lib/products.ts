@@ -75,9 +75,9 @@ export const products: Product[] = [
       "Meet the Palmyra Signature Raglan Tee. Made from 100% cotton at 180 GSM, this long-sleeve raglan features contrasting sleeves and a classic fit for everyday comfort and streetwear style. Free delivery is included in the listed price.",
     image: "/public-products/tshirt-black-white.jpg",
     images: [
-      "/public-products/tshirt-black-white.jpg",
-      "/public-products/tshirt-black-ash.jpg",
-      "/public-products/tshirt-white-black.jpg",
+      "/public/products/tshirt-black-white.jpg",
+      "/public/products/tshirt-black-ash.jpg",
+      "/public/products/tshirt-white-black.jpg",
     ],
     sizes: ["S", "M", "L", "XL"],
     colors: ["Black + White", "Black + Ash", "White + Black"],
