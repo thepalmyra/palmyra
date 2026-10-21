@@ -2,19 +2,75 @@
 "use client";
 
 import Link from "next/link";
+import Script from "next/script";
 import { useEffect, useState, type FormEvent } from "react";
 import { useCart } from "@/components/CartContext";
 import { createClient } from "@/lib/supabase/client";
 
+type RazorpayPaymentResponse = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayPaymentFailedResponse = {
+  error?: {
+    description?: string;
+    reason?: string;
+  };
+};
+
+type RazorpayCheckoutOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  prefill: {
+    name: string;
+    email: string;
+    contact: string;
+  };
+  notes: {
+    order_number: string;
+  };
+  theme: {
+    color: string;
+  };
+  handler: (response: RazorpayPaymentResponse) => void;
+  modal: {
+    ondismiss: () => void;
+  };
+};
+
+type RazorpayCheckoutInstance = {
+  open: () => void;
+  on: (
+    event: "payment.failed",
+    handler: (response: RazorpayPaymentFailedResponse) => void
+  ) => void;
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (
+      options: RazorpayCheckoutOptions
+    ) => RazorpayCheckoutInstance;
+  }
+}
+
 export default function CheckoutPage() {
-  const { items, ready } = useCart();
+  const { items, ready, clearCart } = useCart();
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [orderId, setOrderId] = useState<string | number | null>(null);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState("cod");
   const [addressLoading, setAddressLoading] = useState(true);
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+  const [razorpayLoadError, setRazorpayLoadError] = useState(false);
+  const [paymentNeedsReview, setPaymentNeedsReview] = useState(false);
 
   const [formValues, setFormValues] = useState({
     fullName: "",
@@ -26,6 +82,15 @@ export default function CheckoutPage() {
     pincode: "",
     country: "India",
   });
+
+  const subtotal = items.reduce(
+    (total, item) => total + item.price * item.quantity,
+    0
+  );
+
+  const platformFee = 15;
+  const deliveryFee = 0;
+  const totalAmount = subtotal + platformFee + deliveryFee;
 
   useEffect(() => {
     async function loadSavedAddress() {
@@ -79,11 +144,6 @@ export default function CheckoutPage() {
     loadSavedAddress();
   }, []);
 
-  const subtotal = items.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  );
-
   function updateField(field: keyof typeof formValues, value: string) {
     setFormValues((current) => ({
       ...current,
@@ -94,10 +154,19 @@ export default function CheckoutPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (submitting || orderId !== null) return;
+    if (submitting || orderId !== null || paymentNeedsReview) return;
 
     if (items.length === 0) {
       setError("Your cart is empty.");
+      return;
+    }
+
+    if (!razorpayLoaded || !window.Razorpay) {
+      setError(
+        razorpayLoadError
+          ? "Razorpay Checkout could not load. Check your internet connection and refresh the page."
+          : "Razorpay Checkout is still loading. Please wait a moment and try again."
+      );
       return;
     }
 
@@ -129,6 +198,9 @@ export default function CheckoutPage() {
         data: { session },
       } = await supabase.auth.getSession();
 
+      // Prepare the order and Razorpay payment on the server.
+      // Customer fields are sent at the top level because that is
+      // what app/api/orders/route.ts validates.
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: {
@@ -140,9 +212,8 @@ export default function CheckoutPage() {
             : {}),
         },
         body: JSON.stringify({
-          customer,
+          ...customer,
           items: orderItems,
-          paymentMethod,
         }),
       });
 
@@ -150,30 +221,131 @@ export default function CheckoutPage() {
 
       if (!response.ok) {
         throw new Error(
-          result.error ||
-            "Unable to save your order. Please try again."
+          result.error || "Unable to prepare your order. Please try again."
         );
       }
 
-      if (!result.success || result.orderId == null) {
+      if (
+        !result.success ||
+        result.orderId == null ||
+        typeof result.razorpayOrderId !== "string" ||
+        typeof result.keyId !== "string" ||
+        !Number.isSafeInteger(result.amount) ||
+        result.amount <= 0 ||
+        result.currency !== "INR"
+      ) {
         throw new Error(
-          "Order confirmation was not received. Check your orders before trying again."
+          "The payment details were incomplete. Please refresh and try again."
         );
       }
 
-      setOrderId(result.orderId);
-      setOrderNumber(
-        typeof result.orderNumber === "string"
-          ? result.orderNumber
-          : null
-      );
+      const checkout = new window.Razorpay({
+        key: result.keyId,
+        amount: result.amount,
+        currency: result.currency,
+        name: "Palmyra",
+        description: `Order ${result.orderNumber ?? result.orderId}`,
+        order_id: result.razorpayOrderId,
+        prefill: {
+          name: customer.fullName,
+          email: customer.email,
+          contact: customer.phone,
+        },
+        notes: {
+          order_number: String(result.orderNumber ?? result.orderId),
+        },
+        theme: {
+          color: "#dc2626",
+        },
+
+        handler: async (paymentResponse) => {
+          // Do not mark the order as paid based only on the browser.
+          // The server must verify the signature and captured payment.
+          try {
+            const verificationResponse = await fetch(
+              "/api/payments/verify",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  orderId: result.orderId,
+                  razorpay_order_id: paymentResponse.razorpay_order_id,
+                  razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                  razorpay_signature: paymentResponse.razorpay_signature,
+                }),
+              }
+            );
+
+            const verificationResult = await verificationResponse.json();
+
+            if (
+              !verificationResponse.ok ||
+              !verificationResult.success ||
+              verificationResult.paymentStatus !== "paid"
+            ) {
+              throw new Error(
+                verificationResult.error ||
+                  "Palmyra could not confirm the payment."
+              );
+            }
+
+            // Show confirmation only after server-side verification.
+            setOrderNumber(
+              typeof verificationResult.orderNumber === "string"
+                ? verificationResult.orderNumber
+                : typeof result.orderNumber === "string"
+                  ? result.orderNumber
+                  : null
+            );
+            setOrderId(result.orderId);
+
+            // Clear the cart only after verified payment.
+            await clearCart();
+          } catch (verificationError) {
+            console.error(
+              "Payment verification needs review:",
+              verificationError
+            );
+
+            setPaymentNeedsReview(true);
+            setError(
+              `Palmyra could not confirm the payment. Do not pay again until the payment status has been checked. Please contact support and provide order number ${result.orderNumber ?? result.orderId}. ${
+                verificationError instanceof Error
+                  ? verificationError.message
+                  : ""
+              }`
+            );
+          } finally {
+            setSubmitting(false);
+          }
+        },
+
+        modal: {
+          ondismiss: () => {
+            setSubmitting(false);
+            setError(
+              "Checkout was closed before Palmyra confirmed your payment. Your cart has not been cleared. If you completed payment just before closing checkout, check the payment status before trying again."
+            );
+          },
+        },
+      });
+
+      checkout.on("payment.failed", (paymentFailure) => {
+        setError(
+          paymentFailure.error?.description ||
+            "The payment did not complete. You can retry in Razorpay Checkout or close it and try again."
+        );
+      });
+
+      checkout.open();
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : "Something went wrong. Please try again."
       );
-    } finally {
       setSubmitting(false);
     }
   }
@@ -209,6 +381,13 @@ export default function CheckoutPage() {
 
   return (
     <main className="min-h-screen bg-black px-4 py-12 text-white sm:px-8">
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+        onLoad={() => setRazorpayLoaded(true)}
+        onError={() => setRazorpayLoadError(true)}
+      />
+
       <div className="mx-auto max-w-6xl">
         <Link
           href="/cart"
@@ -231,7 +410,7 @@ export default function CheckoutPage() {
             className="mt-6 rounded-xl border border-green-600/50 bg-green-600/10 p-5"
           >
             <h2 className="text-xl font-semibold text-green-400">
-              Order saved successfully!
+              Payment successful!
             </h2>
 
             <p className="mt-2 text-gray-200">
@@ -239,13 +418,12 @@ export default function CheckoutPage() {
             </p>
 
             <p className="mt-1 text-3xl font-extrabold tracking-wide text-red-500">
-              {orderNumber ?? "Order received"}
+              {orderNumber ?? "Order confirmed"}
             </p>
 
             <p className="mt-3 text-sm text-gray-300">
-              Your order details have been saved. No payment has been
-              taken. Payment and delivery arrangements are not yet
-              enabled.
+              Your payment has been verified and your order has been
+              recorded. Delivery is free.
             </p>
 
             <Link
@@ -263,7 +441,9 @@ export default function CheckoutPage() {
             className="mt-6 rounded-xl border border-red-500/50 bg-red-500/10 p-4"
           >
             <h2 className="font-semibold text-red-400">
-              Could not save your order
+              {paymentNeedsReview
+                ? "Payment status needs checking"
+                : "Checkout message"}
             </h2>
 
             <p className="mt-2 text-sm text-gray-200">{error}</p>
@@ -274,7 +454,9 @@ export default function CheckoutPage() {
           <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
             <form
               onSubmit={handleSubmit}
-              onChange={() => setError("")}
+              onChange={() => {
+                if (!paymentNeedsReview) setError("");
+              }}
               className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-8"
             >
               {addressLoading && (
@@ -494,45 +676,46 @@ export default function CheckoutPage() {
                   Payment Method
                 </h2>
 
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/20 bg-black p-4">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="cod"
-                    checked={paymentMethod === "cod"}
-                    onChange={(event) =>
-                      setPaymentMethod(event.target.value)
-                    }
-                    className="accent-red-600"
-                  />
+                <div className="rounded-lg border border-red-500/50 bg-black p-4">
+                  <p className="font-medium">Prepaid Online Payment</p>
 
-                  <span>
-                    <span className="block font-medium">
-                      Cash on Delivery
-                    </span>
+                  <p className="mt-1 text-sm text-gray-400">
+                    Pay securely using the Razorpay checkout window.
+                    Cash on Delivery is not available.
+                  </p>
 
-                    <span className="mt-1 block text-sm text-gray-400">
-                      Payment arrangements are not active yet.
-                    </span>
-                  </span>
-                </label>
+                  <p className="mt-3 text-sm text-gray-300">
+                    Delivery is free. A ₹15 platform fee applies to each
+                    order.
+                  </p>
+                </div>
               </section>
 
               <button
                 type="submit"
-                disabled={submitting || addressLoading}
+                disabled={
+                  submitting ||
+                  addressLoading ||
+                  !razorpayLoaded ||
+                  paymentNeedsReview
+                }
                 className="w-full rounded-lg bg-red-600 px-5 py-4 font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting
-                  ? "Saving Your Order..."
-                  : addressLoading
-                    ? "Loading Your Details..."
-                    : "Place Order"}
+                {paymentNeedsReview
+                  ? "Payment Status Needs Checking"
+                  : submitting
+                    ? "Preparing Secure Payment..."
+                    : addressLoading
+                      ? "Loading Your Details..."
+                      : !razorpayLoaded
+                        ? "Loading Payment..."
+                        : `Pay ₹${totalAmount.toLocaleString("en-IN")}`}
               </button>
 
               <p className="text-xs leading-5 text-gray-500">
-                Your order will be saved when the request succeeds.
-                No payment will be collected by this checkout.
+                Your order will be confirmed only after Palmyra verifies
+                the payment. If payment status cannot be confirmed, do
+                not pay again until it has been checked.
               </p>
             </form>
 
@@ -579,14 +762,19 @@ export default function CheckoutPage() {
                   <span>₹{subtotal.toLocaleString("en-IN")}</span>
                 </div>
 
-                <div className="flex justify-between gap-3 text-gray-400">
+                <div className="flex justify-between gap-3 text-gray-300">
                   <span>Delivery</span>
-                  <span>Calculated later</span>
+                  <span>Free</span>
+                </div>
+
+                <div className="flex justify-between gap-3 text-gray-300">
+                  <span>Platform fee</span>
+                  <span>₹{platformFee.toLocaleString("en-IN")}</span>
                 </div>
 
                 <div className="flex justify-between gap-3 border-t border-white/10 pt-4 text-lg font-bold">
-                  <span>Total before delivery</span>
-                  <span>₹{subtotal.toLocaleString("en-IN")}</span>
+                  <span>Total payable</span>
+                  <span>₹{totalAmount.toLocaleString("en-IN")}</span>
                 </div>
               </div>
 
