@@ -11,165 +11,339 @@ function thumbnail(video: any) {
     : video.thumbnail;
 }
 
+function getCategoryOrder(category: string) {
+  if (category.toLowerCase() === "palmyra") return 0;
+  if (category.toLowerCase() === "football") return 1;
+  return 2;
+}
+
 export default function Watch() {
-  // Use only local Palmyra videos for the autoplay banner.
   const bannerVideos = videos.filter(
     (video: any) =>
-      video.type === "local" && video.category === "Palmyra"
+      video.type === "local" &&
+      video.category?.toLowerCase() === "palmyra"
   );
 
   const [currentVideo, setCurrentVideo] = useState(0);
 
-  // Change the banner video every 10 seconds.
   useEffect(() => {
     if (bannerVideos.length <= 1) return;
 
     const timer = setInterval(() => {
-      setCurrentVideo((prev) => (prev + 1) % bannerVideos.length);
+      setCurrentVideo((previous) => (previous + 1) % bannerVideos.length);
     }, 10000);
 
     return () => clearInterval(timer);
   }, [bannerVideos.length]);
 
-  if (bannerVideos.length === 0) {
-    return (
-      <main className="min-h-screen bg-black p-8 text-white">
-        Add local Palmyra videos to lib/videos.ts to display the banner.
-      </main>
-    );
-  }
+  const featuredVideo =
+    bannerVideos.length > 0
+      ? bannerVideos[currentVideo % bannerVideos.length]
+      : null;
 
-  const featuredVideo = bannerVideos[currentVideo];
+  const categories = Array.from(
+    new Set(
+      videos
+        .map((video: any) => video.category)
+        .filter((category: any) => typeof category === "string" && category.trim())
+    )
+  ).sort((a, b) => {
+    const orderDifference = getCategoryOrder(a) - getCategoryOrder(b);
+
+    if (orderDifference !== 0) return orderDifference;
+
+    // Keep all other categories in their original order.
+    return 0;
+  });
 
   return (
-    <main className="min-h-screen bg-black pb-24 text-white">
-      {/* PALMYRA AUTOPLAY BANNER */}
-      <section className="relative flex min-h-[580px] items-center overflow-hidden md:min-h-[750px]">
-        <video
-          key={featuredVideo.id}
-          src={`/videos/${featuredVideo.id}.mp4`}
-          className="absolute inset-0 h-full w-full object-cover"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-        />
+    <main className="min-h-screen overflow-hidden bg-[#080808] pb-16 text-white">
+      {/* FEATURED HERO */}
+      <section className="relative isolate flex min-h-[590px] items-center overflow-hidden bg-zinc-950 md:min-h-[720px]">
+        {featuredVideo ? (
+          <video
+            key={featuredVideo.id}
+            src={`/videos/${featuredVideo.id}.mp4`}
+            className="absolute inset-0 -z-20 h-full w-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+          />
+        ) : (
+          <img
+            src="https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=2000&q=85"
+            alt="Athletes running on a track"
+            className="absolute inset-0 -z-20 h-full w-full object-cover"
+          />
+        )}
 
-        {/* Dark overlay for readable text */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black via-black/80 to-black/30" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#080808] via-transparent to-black/20" />
 
-        {/* Banner content */}
-        <div className="relative z-10 max-w-4xl px-6 py-24 md:px-16">
-          <p className="mb-4 text-sm font-semibold tracking-[0.35em] text-red-500">
-            INTRODUCING PALMYRA
-          </p>
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-5 py-24 sm:px-8 md:px-12 md:py-32">
+          <div className="max-w-3xl">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-red-400">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+              The Palmyra experience
+            </div>
 
-          <h1 className="text-5xl font-bold leading-tight tracking-tight md:text-7xl">
-            More than a brand.
-            <br />
-            A way of life.
-          </h1>
+            <h1 className="text-5xl font-black leading-[1.05] tracking-tight sm:text-6xl md:text-8xl">
+              Stories that
+              <br />
+              <span className="text-red-500">move you.</span>
+            </h1>
 
-          <p className="mt-5 max-w-xl text-base leading-7 text-gray-300 md:text-lg">
-            Discover Palmyra — sportswear, accessories, original
-            content and a community built around your passion.
-          </p>
+            <p className="mt-6 max-w-xl text-base leading-7 text-gray-300 sm:text-lg sm:leading-8">
+              Your destination for Palmyra originals, football and
+              inspiring stories. Discover the videos, moments and
+              passions that bring our community together.
+            </p>
 
-          <div className="mt-8 flex flex-wrap gap-4">
-            <Link
-              href={`/watch/${featuredVideo.id}`}
-              className="rounded-lg bg-red-600 px-7 py-4 font-bold transition hover:bg-red-700"
-            >
-              ▶ Watch Featured Video
-            </Link>
+            <div className="mt-8 flex flex-wrap gap-3">
+              {featuredVideo && (
+                <Link
+                  href={`/watch/${featuredVideo.id}`}
+                  className="inline-flex items-center gap-3 rounded-xl bg-red-600 px-6 py-4 font-bold transition hover:-translate-y-0.5 hover:bg-red-700"
+                >
+                  <span aria-hidden="true">▶</span>
+                  Watch featured
+                </Link>
+              )}
 
-            <Link
-              href="/store"
-              className="rounded-lg border border-white px-7 py-4 font-bold transition hover:bg-white hover:text-black"
-            >
-              Shop Palmyra →
-            </Link>
+              <a
+                href="#palmyra"
+                className="inline-flex items-center rounded-xl border border-white/25 bg-white/5 px-6 py-4 font-bold backdrop-blur-sm transition hover:border-white hover:bg-white hover:text-black"
+              >
+                Explore videos <span className="ml-2">↓</span>
+              </a>
+            </div>
+
+            {featuredVideo && (
+              <div className="mt-8 flex items-center gap-3">
+                <div className="h-10 w-1 rounded-full bg-red-500" />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                    Featured Palmyra original
+                  </p>
+                  <p className="mt-1 font-semibold">{featuredVideo.title}</p>
+                </div>
+              </div>
+            )}
+
+            {!featuredVideo && (
+              <p className="mt-8 text-sm text-gray-400">
+                Explore our available videos below. Add local Palmyra
+                videos to lib/videos.ts to activate the featured video banner.
+              </p>
+            )}
           </div>
-
-          <p className="mt-6 text-sm text-gray-400">
-            Featured: {featuredVideo.title}
-          </p>
         </div>
+
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-500/60 to-transparent" />
       </section>
 
-      {/* ALL VIDEO CATEGORIES */}
-      {Array.from(
-        new Set(
-          videos.map((video: any) => video.category).filter(Boolean)
-        )
-      ).map((category) => {
+      {/* QUICK CATEGORY NAVIGATION */}
+      {categories.length > 0 && (
+        <nav
+          aria-label="Video categories"
+          className="sticky top-0 z-30 border-b border-white/10 bg-[#080808]/90 backdrop-blur-xl"
+        >
+          <div className="mx-auto flex max-w-7xl gap-3 overflow-x-auto px-5 py-4 sm:px-8 md:px-12">
+            {categories.map((category: string) => (
+              <a
+                key={category}
+                href={`#${category.toLowerCase() === "palmyra" ? "palmyra" : category.toLowerCase() === "football" ? "football" : `category-${categories.indexOf(category)}`}`}
+                className="shrink-0 rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-gray-300 transition hover:border-red-500/60 hover:bg-red-500/10 hover:text-white"
+              >
+                {category}
+              </a>
+            ))}
+          </div>
+        </nav>
+      )}
+
+      {/* VIDEO CATEGORY SECTIONS */}
+      {categories.map((category: string, categoryIndex: number) => {
         const categoryVideos = videos.filter(
           (video: any) => video.category === category
         );
 
+        const sectionId =
+          category.toLowerCase() === "palmyra"
+            ? "palmyra"
+            : category.toLowerCase() === "football"
+              ? "football"
+              : `category-${categoryIndex}`;
+
+        const isPalmyra = category.toLowerCase() === "palmyra";
+        const isFootball = category.toLowerCase() === "football";
+
         return (
           <section
             key={category}
-            className="px-5 py-10 md:px-10"
+            id={sectionId}
+            className="scroll-mt-24 px-5 py-10 sm:px-8 md:px-12 md:py-14"
           >
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold md:text-3xl">
-                {category}
-              </h2>
-            </div>
-
-            <div className="flex gap-5 overflow-x-auto pb-4">
-              {categoryVideos.map((video: any) => (
-                <Link
-                  key={video.id}
-                  href={`/watch/${video.id}`}
-                  className="w-[260px] flex-shrink-0 md:w-[320px]"
-                >
-                  <div className="overflow-hidden rounded-xl bg-zinc-900">
-                    <img
-                      src={thumbnail(video)}
-                      alt={video.title}
-                      className="aspect-video w-full object-cover transition duration-300 hover:scale-105"
-                    />
-                  </div>
-
-                  <h3 className="mt-3 font-semibold">
-                    {video.title}
-                  </h3>
-
-                  <p className="mt-1 text-sm text-gray-400">
-                    {video.description}
+            <div className="mx-auto max-w-7xl">
+              <div className="mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-red-500">
+                    {isPalmyra
+                      ? "ORIGINALS & EXCLUSIVES"
+                      : isFootball
+                        ? "THE BEAUTIFUL GAME"
+                        : "EXPLORE MORE"}
                   </p>
-                </Link>
-              ))}
+
+                  <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+                    {category}
+                    <span className="text-red-500">.</span>
+                  </h2>
+
+                  <p className="mt-2 text-sm text-gray-400 sm:text-base">
+                    {isPalmyra
+                      ? "Discover stories made for the Palmyra community."
+                      : isFootball
+                        ? "Football content, highlights and the moments that matter."
+                        : `Discover the latest videos in ${category}.`}
+                  </p>
+                </div>
+
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-gray-400">
+                  {categoryVideos.length}{" "}
+                  {categoryVideos.length === 1 ? "video" : "videos"}
+                </span>
+              </div>
+
+              {categoryVideos.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-gray-500">
+                  Videos in this category will appear here.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {categoryVideos.map((video: any, index: number) => (
+                    <Link
+                      key={video.id}
+                      href={`/watch/${video.id}`}
+                      className="group min-w-0"
+                    >
+                      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#151515]">
+                        <img
+                          src={thumbnail(video)}
+                          alt={video.title}
+                          loading={index > 3 ? "lazy" : "eager"}
+                          className="aspect-video w-full object-cover transition duration-500 group-hover:scale-105 group-hover:opacity-75"
+                        />
+
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80" />
+
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="flex h-12 w-12 translate-y-2 items-center justify-center rounded-full border border-white/40 bg-black/60 text-lg opacity-0 backdrop-blur-sm transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                            ▶
+                          </span>
+                        </div>
+
+                        <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">
+                          {category}
+                        </span>
+
+                        <span className="absolute bottom-3 right-3 rounded-full bg-red-600 px-3 py-1 text-xs font-bold">
+                          Watch →
+                        </span>
+                      </div>
+
+                      <div className="px-1 pt-4">
+                        <h3 className="line-clamp-2 text-base font-bold leading-6 transition group-hover:text-red-400 sm:text-lg">
+                          {video.title}
+                        </h3>
+
+                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-gray-400">
+                          {video.description || "Watch more from Palmyra."}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         );
       })}
 
-      {/* BRAND + COMMUNITY */}
-      <section className="px-6 py-16 text-center md:py-20">
-        <p className="text-xs font-semibold tracking-[0.3em] text-red-500">
-          JOIN THE PALMYRA COMMUNITY
-        </p>
+      {/* EMPTY LIBRARY STATE */}
+      {videos.length === 0 && (
+        <section className="px-5 py-16 sm:px-8 md:px-12">
+          <div className="mx-auto max-w-4xl rounded-3xl border border-white/10 bg-white/[0.03] px-6 py-12 text-center sm:px-12">
+            <div className="text-4xl">▶</div>
+            <h2 className="mt-5 text-2xl font-bold">
+              Your next favourite starts here.
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg leading-7 text-gray-400">
+              Videos will appear here as you add them to your library.
+              Check back for new Palmyra content.
+            </p>
+          </div>
+        </section>
+      )}
 
-        <h2 className="mt-4 text-3xl font-bold md:text-4xl">
-          Built around your passion.
-        </h2>
+      {/* COMMUNITY BANNER */}
+      <section className="px-5 py-12 sm:px-8 md:px-12 md:py-16">
+        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-3xl border border-white/10 bg-[#111111]">
+          <img
+            src="https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1800&q=85"
+            alt="Athletes training and staying active"
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover opacity-25"
+          />
 
-        <p className="mx-auto mt-4 max-w-xl leading-7 text-gray-400">
-          Discover our latest products, original videos and
-          upcoming collections.
-        </p>
+          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/85 to-black/40" />
 
-        <Link
-          href="/store"
-          className="mt-7 inline-block rounded-lg border border-white px-7 py-4 font-semibold transition hover:bg-white hover:text-black"
-        >
-          DISCOVER PALMYRA →
-        </Link>
+          <div className="relative z-10 max-w-3xl px-6 py-14 sm:px-10 sm:py-16 md:px-14 md:py-20">
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-500">
+              MORE THAN WATCHING
+            </p>
+
+            <h2 className="mt-4 text-3xl font-black leading-tight sm:text-5xl">
+              Be part of the
+              <br />
+              <span className="text-red-500">Palmyra story.</span>
+            </h2>
+
+            <p className="mt-5 max-w-xl leading-7 text-gray-300">
+              Explore the collection, discover your style and stay
+              connected with a brand built around passion.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/store"
+                className="rounded-xl bg-red-600 px-6 py-3.5 font-bold transition hover:bg-red-700"
+              >
+                Shop the collection →
+              </Link>
+
+              <Link
+                href="/"
+                className="rounded-xl border border-white/25 px-6 py-3.5 font-bold transition hover:bg-white hover:text-black"
+              >
+                Back to home
+              </Link>
+            </div>
+          </div>
+        </div>
       </section>
+
+      {/* FOOTER CTA */}
+      <footer className="border-t border-white/10 px-5 py-8 text-center sm:px-8">
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-gray-500">
+          PALMYRA
+        </p>
+        <p className="mt-3 text-sm text-gray-500">
+          Discover your passion. Make it yours.
+        </p>
+      </footer>
     </main>
   );
 }
