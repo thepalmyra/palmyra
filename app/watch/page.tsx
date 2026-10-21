@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { videos } from "@/lib/videos";
 
 function thumbnail(video: any) {
@@ -18,13 +18,14 @@ function getCategoryOrder(category: string) {
 }
 
 export default function Watch() {
+  const [currentVideo, setCurrentVideo] = useState(0);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
   const bannerVideos = videos.filter(
     (video: any) =>
       video.type === "local" &&
       video.category?.toLowerCase() === "palmyra"
   );
-
-  const [currentVideo, setCurrentVideo] = useState(0);
 
   useEffect(() => {
     if (bannerVideos.length <= 1) return;
@@ -45,16 +46,25 @@ export default function Watch() {
     new Set(
       videos
         .map((video: any) => video.category)
-        .filter((category: any) => typeof category === "string" && category.trim())
+        .filter(
+          (category: any) =>
+            typeof category === "string" && category.trim()
+        )
     )
-  ).sort((a, b) => {
-    const orderDifference = getCategoryOrder(a) - getCategoryOrder(b);
+  ).sort(
+    (a, b) => getCategoryOrder(a) - getCategoryOrder(b)
+  );
 
-    if (orderDifference !== 0) return orderDifference;
+  function scrollCategory(sectionId: string, direction: number) {
+    const row = rowRefs.current[sectionId];
 
-    // Keep all other categories in their original order.
-    return 0;
-  });
+    if (row) {
+      row.scrollBy({
+        left: direction * row.clientWidth * 0.8,
+        behavior: "smooth",
+      });
+    }
+  }
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#080808] pb-16 text-white">
@@ -113,7 +123,7 @@ export default function Watch() {
               )}
 
               <a
-                href="#palmyra"
+                href="#video-library"
                 className="inline-flex items-center rounded-xl border border-white/25 bg-white/5 px-6 py-4 font-bold backdrop-blur-sm transition hover:border-white hover:bg-white hover:text-black"
               >
                 Explore videos <span className="ml-2">↓</span>
@@ -127,7 +137,9 @@ export default function Watch() {
                   <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
                     Featured Palmyra original
                   </p>
-                  <p className="mt-1 font-semibold">{featuredVideo.title}</p>
+                  <p className="mt-1 font-semibold">
+                    {featuredVideo.title}
+                  </p>
                 </div>
               </div>
             )}
@@ -135,7 +147,7 @@ export default function Watch() {
             {!featuredVideo && (
               <p className="mt-8 text-sm text-gray-400">
                 Explore our available videos below. Add local Palmyra
-                videos to lib/videos.ts to activate the featured video banner.
+                videos to lib/videos.ts to activate the featured banner.
               </p>
             )}
           </div>
@@ -144,142 +156,199 @@ export default function Watch() {
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-500/60 to-transparent" />
       </section>
 
-      {/* QUICK CATEGORY NAVIGATION */}
+      {/* CATEGORY NAVIGATION */}
       {categories.length > 0 && (
         <nav
           aria-label="Video categories"
           className="sticky top-0 z-30 border-b border-white/10 bg-[#080808]/90 backdrop-blur-xl"
         >
-          <div className="mx-auto flex max-w-7xl gap-3 overflow-x-auto px-5 py-4 sm:px-8 md:px-12">
-            {categories.map((category: string) => (
-              <a
-                key={category}
-                href={`#${category.toLowerCase() === "palmyra" ? "palmyra" : category.toLowerCase() === "football" ? "football" : `category-${categories.indexOf(category)}`}`}
-                className="shrink-0 rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-gray-300 transition hover:border-red-500/60 hover:bg-red-500/10 hover:text-white"
-              >
-                {category}
-              </a>
-            ))}
+          <div className="mx-auto flex max-w-7xl gap-3 overflow-x-auto px-5 py-4 sm:px-8 md:px-12 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {categories.map((category: string, categoryIndex: number) => {
+              const sectionId =
+                category.toLowerCase() === "palmyra"
+                  ? "palmyra"
+                  : category.toLowerCase() === "football"
+                    ? "football"
+                    : `category-${categoryIndex}`;
+
+              return (
+                <a
+                  key={category}
+                  href={`#${sectionId}`}
+                  className="shrink-0 rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-gray-300 transition hover:border-red-500/60 hover:bg-red-500/10 hover:text-white"
+                >
+                  {category}
+                </a>
+              );
+            })}
           </div>
         </nav>
       )}
 
-      {/* VIDEO CATEGORY SECTIONS */}
-      {categories.map((category: string, categoryIndex: number) => {
-        const categoryVideos = videos.filter(
-          (video: any) => video.category === category
-        );
+      {/* HORIZONTAL VIDEO LIBRARY */}
+      <div id="video-library" className="scroll-mt-24">
+        {categories.map((category: string, categoryIndex: number) => {
+          const categoryVideos = videos.filter(
+            (video: any) => video.category === category
+          );
 
-        const sectionId =
-          category.toLowerCase() === "palmyra"
-            ? "palmyra"
-            : category.toLowerCase() === "football"
-              ? "football"
-              : `category-${categoryIndex}`;
+          const sectionId =
+            category.toLowerCase() === "palmyra"
+              ? "palmyra"
+              : category.toLowerCase() === "football"
+                ? "football"
+                : `category-${categoryIndex}`;
 
-        const isPalmyra = category.toLowerCase() === "palmyra";
-        const isFootball = category.toLowerCase() === "football";
+          const isPalmyra = category.toLowerCase() === "palmyra";
+          const isFootball = category.toLowerCase() === "football";
 
-        return (
-          <section
-            key={category}
-            id={sectionId}
-            className="scroll-mt-24 px-5 py-10 sm:px-8 md:px-12 md:py-14"
-          >
-            <div className="mx-auto max-w-7xl">
-              <div className="mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
-                <div>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-red-500">
-                    {isPalmyra
-                      ? "ORIGINALS & EXCLUSIVES"
-                      : isFootball
-                        ? "THE BEAUTIFUL GAME"
-                        : "EXPLORE MORE"}
-                  </p>
+          return (
+            <section
+              key={category}
+              id={sectionId}
+              className="scroll-mt-28 py-9 sm:py-11 md:py-14"
+            >
+              <div className="mx-auto max-w-[1600px]">
+                {/* SECTION HEADING */}
+                <div className="mb-6 flex items-end justify-between gap-4 px-5 sm:px-8 md:px-12">
+                  <div className="min-w-0">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.25em] text-red-500 sm:text-xs">
+                      {isPalmyra
+                        ? "ORIGINALS & EXCLUSIVES"
+                        : isFootball
+                          ? "THE BEAUTIFUL GAME"
+                          : "EXPLORE MORE"}
+                    </p>
 
-                  <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
-                    {category}
-                    <span className="text-red-500">.</span>
-                  </h2>
+                    <h2 className="text-2xl font-black tracking-tight sm:text-3xl md:text-4xl">
+                      {category}
+                      <span className="text-red-500">.</span>
+                    </h2>
 
-                  <p className="mt-2 text-sm text-gray-400 sm:text-base">
-                    {isPalmyra
-                      ? "Discover stories made for the Palmyra community."
-                      : isFootball
-                        ? "Football content, highlights and the moments that matter."
-                        : `Discover the latest videos in ${category}.`}
-                  </p>
+                    <p className="mt-2 text-sm text-gray-400 sm:text-base">
+                      {isPalmyra
+                        ? "Discover stories made for the Palmyra community."
+                        : isFootball
+                          ? "Football content, highlights and the moments that matter."
+                          : `Discover the latest videos in ${category}.`}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-gray-400 sm:inline-flex">
+                      {categoryVideos.length}{" "}
+                      {categoryVideos.length === 1 ? "video" : "videos"}
+                    </span>
+
+                    {/* DESKTOP SCROLL CONTROLS */}
+                    {categoryVideos.length > 1 && (
+                      <div className="hidden items-center gap-2 sm:flex">
+                        <button
+                          type="button"
+                          aria-label={`Scroll ${category} videos left`}
+                          onClick={() => scrollCategory(sectionId, -1)}
+                          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-xl transition hover:border-red-500 hover:bg-red-600"
+                        >
+                          ‹
+                        </button>
+
+                        <button
+                          type="button"
+                          aria-label={`Scroll ${category} videos right`}
+                          onClick={() => scrollCategory(sectionId, 1)}
+                          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-xl transition hover:border-red-500 hover:bg-red-600"
+                        >
+                          ›
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-gray-400">
-                  {categoryVideos.length}{" "}
-                  {categoryVideos.length === 1 ? "video" : "videos"}
-                </span>
-              </div>
-
-              {categoryVideos.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-gray-500">
-                  Videos in this category will appear here.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {categoryVideos.map((video: any, index: number) => (
-                    <Link
-                      key={video.id}
-                      href={`/watch/${video.id}`}
-                      className="group min-w-0"
+                {categoryVideos.length === 0 ? (
+                  <div className="mx-5 rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-gray-500 sm:mx-8 md:mx-12">
+                    Videos in this category will appear here.
+                  </div>
+                ) : (
+                  <>
+                    {/* SIDE-SCROLLING VIDEO CARDS */}
+                    <div
+                      ref={(element) => {
+                        rowRefs.current[sectionId] = element;
+                      }}
+                      className="flex snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-hidden px-5 pb-5 sm:gap-5 sm:px-8 md:px-12 [scrollbar-width:thin] [scrollbar-color:#525252_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-neutral-600 [&::-webkit-scrollbar-track]:bg-transparent"
                     >
-                      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#151515]">
-                        <img
-                          src={thumbnail(video)}
-                          alt={video.title}
-                          loading={index > 3 ? "lazy" : "eager"}
-                          className="aspect-video w-full object-cover transition duration-500 group-hover:scale-105 group-hover:opacity-75"
-                        />
+                      {categoryVideos.map((video: any, index: number) => (
+                        <Link
+                          key={video.id}
+                          href={`/watch/${video.id}`}
+                          className="group w-[82%] min-w-0 shrink-0 snap-start sm:w-[46%] lg:w-[31%] xl:w-[24%]"
+                        >
+                          <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#151515] sm:rounded-2xl">
+                            <img
+                              src={thumbnail(video)}
+                              alt={video.title}
+                              loading={index > 2 ? "lazy" : "eager"}
+                              className="aspect-video w-full object-cover transition duration-500 group-hover:scale-105 group-hover:opacity-75"
+                            />
 
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80" />
 
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="flex h-12 w-12 translate-y-2 items-center justify-center rounded-full border border-white/40 bg-black/60 text-lg opacity-0 backdrop-blur-sm transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-                            ▶
-                          </span>
-                        </div>
+                            {/* PLAY ICON */}
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="flex h-11 w-11 translate-y-2 items-center justify-center rounded-full border border-white/40 bg-black/60 text-lg opacity-100 backdrop-blur-sm transition duration-300 sm:h-12 sm:w-12 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
+                                ▶
+                              </span>
+                            </div>
 
-                        <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">
-                          {category}
-                        </span>
+                            {/* CATEGORY LABEL */}
+                            <span className="absolute left-3 top-3 max-w-[75%] truncate rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">
+                              {category}
+                            </span>
 
-                        <span className="absolute bottom-3 right-3 rounded-full bg-red-600 px-3 py-1 text-xs font-bold">
-                          Watch →
-                        </span>
-                      </div>
+                            {/* WATCH LABEL */}
+                            <span className="absolute bottom-3 right-3 rounded-full bg-red-600 px-3 py-1 text-xs font-bold">
+                              Watch →
+                            </span>
+                          </div>
 
-                      <div className="px-1 pt-4">
-                        <h3 className="line-clamp-2 text-base font-bold leading-6 transition group-hover:text-red-400 sm:text-lg">
-                          {video.title}
-                        </h3>
+                          <div className="px-1 pt-3 sm:pt-4">
+                            <h3 className="line-clamp-2 text-base font-bold leading-6 transition group-hover:text-red-400 sm:text-lg">
+                              {video.title}
+                            </h3>
 
-                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-gray-400">
-                          {video.description || "Watch more from Palmyra."}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        );
-      })}
+                            <p className="mt-2 line-clamp-2 text-sm leading-6 text-gray-400">
+                              {video.description || "Watch more from Palmyra."}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+
+                    {/* MOBILE SCROLL HINT */}
+                    {categoryVideos.length > 1 && (
+                      <p className="mt-1 px-5 text-xs text-gray-500 sm:hidden">
+                        Swipe to explore more →
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </section>
+          );
+        })}
+      </div>
 
       {/* EMPTY LIBRARY STATE */}
       {videos.length === 0 && (
         <section className="px-5 py-16 sm:px-8 md:px-12">
           <div className="mx-auto max-w-4xl rounded-3xl border border-white/10 bg-white/[0.03] px-6 py-12 text-center sm:px-12">
             <div className="text-4xl">▶</div>
+
             <h2 className="mt-5 text-2xl font-bold">
               Your next favourite starts here.
             </h2>
+
             <p className="mx-auto mt-3 max-w-lg leading-7 text-gray-400">
               Videos will appear here as you add them to your library.
               Check back for new Palmyra content.
@@ -335,11 +404,12 @@ export default function Watch() {
         </div>
       </section>
 
-      {/* FOOTER CTA */}
+      {/* FOOTER */}
       <footer className="border-t border-white/10 px-5 py-8 text-center sm:px-8">
         <p className="text-xs font-bold uppercase tracking-[0.3em] text-gray-500">
           PALMYRA
         </p>
+
         <p className="mt-3 text-sm text-gray-500">
           Discover your passion. Make it yours.
         </p>
