@@ -193,7 +193,7 @@ export async function POST(request: Request) {
         items: validatedItems,
         subtotal,
       })
-      .select("id")
+      .select("id, order_number")
       .single();
 
     if (error) {
@@ -206,10 +206,16 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { success: true, orderId: data.id },
+      {
+        success: true,
+        orderId: data.id,
+        orderNumber: data.order_number,
+      },
       { status: 201 }
     );
-  } catch {
+  } catch (error) {
+    console.error("Order request failed:", error);
+
     return NextResponse.json(
       { error: "Invalid request. Please try again." },
       { status: 400 }

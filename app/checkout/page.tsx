@@ -12,6 +12,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [orderId, setOrderId] = useState<string | number | null>(null);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [addressLoading, setAddressLoading] = useState(true);
 
@@ -83,10 +84,7 @@ export default function CheckoutPage() {
     0
   );
 
-  function updateField(
-    field: keyof typeof formValues,
-    value: string
-  ) {
+  function updateField(field: keyof typeof formValues, value: string) {
     setFormValues((current) => ({
       ...current,
       [field]: value,
@@ -164,6 +162,11 @@ export default function CheckoutPage() {
       }
 
       setOrderId(result.orderId);
+      setOrderNumber(
+        typeof result.orderNumber === "string"
+          ? result.orderNumber
+          : null
+      );
     } catch (err) {
       setError(
         err instanceof Error
@@ -187,9 +190,7 @@ export default function CheckoutPage() {
     return (
       <main className="min-h-screen bg-black px-6 py-16 text-white">
         <div className="mx-auto max-w-xl text-center">
-          <h1 className="text-3xl font-bold">
-            Your cart is empty
-          </h1>
+          <h1 className="text-3xl font-bold">Your cart is empty</h1>
 
           <p className="mt-4 text-gray-400">
             Add a product before proceeding to checkout.
@@ -237,14 +238,14 @@ export default function CheckoutPage() {
               Your Palmyra order number is:
             </p>
 
-            <p className="mt-1 text-2xl font-bold">
-              #{orderId}
+            <p className="mt-1 text-3xl font-extrabold tracking-wide text-red-500">
+              {orderNumber ?? "Order received"}
             </p>
 
             <p className="mt-3 text-sm text-gray-300">
-              Your order details have been saved. No payment has
-              been taken. Payment and delivery arrangements are
-              not yet enabled.
+              Your order details have been saved. No payment has been
+              taken. Payment and delivery arrangements are not yet
+              enabled.
             </p>
 
             <Link
@@ -265,9 +266,7 @@ export default function CheckoutPage() {
               Could not save your order
             </h2>
 
-            <p className="mt-2 text-sm text-gray-200">
-              {error}
-            </p>
+            <p className="mt-2 text-sm text-gray-200">{error}</p>
           </div>
         )}
 
@@ -538,9 +537,7 @@ export default function CheckoutPage() {
             </form>
 
             <aside className="h-fit rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6">
-              <h2 className="text-xl font-bold">
-                Order Summary
-              </h2>
+              <h2 className="text-xl font-bold">Order Summary</h2>
 
               <div className="mt-5 space-y-4">
                 {items.map((item, index) => (
