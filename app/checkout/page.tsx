@@ -103,9 +103,11 @@ export default function CheckoutPage() {
         const supabase = createClient();
 
         const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
+         data: { session },
+         error: userError,
+        } = await supabase.auth.getSession();
+
+        const user = session?.user ?? null;
 
         if (userError) {
           console.error("Could not get signed-in user:", userError);
