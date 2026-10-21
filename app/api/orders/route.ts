@@ -31,10 +31,24 @@ export async function POST(request: Request) {
       );
     }
 
-    const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
-    const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID?.trim();
+    const razorpayKeySecret =
+      process.env.RAZORPAY_KEY_SECRET?.trim();
     const publicRazorpayKeyId =
-      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim();
+
+    const keyConfig = {
+      serverKeyIdPresent: Boolean(razorpayKeyId),
+      secretPresent: Boolean(razorpayKeySecret),
+      publicKeyIdPresent: Boolean(publicRazorpayKeyId),
+      keyIdsMatch:
+        Boolean(razorpayKeyId) &&
+        Boolean(publicRazorpayKeyId) &&
+        razorpayKeyId === publicRazorpayKeyId,
+      testModeKey: razorpayKeyId?.startsWith("rzp_test_") ?? false,
+    };
+
+    console.log("Razorpay configuration check:", keyConfig);
 
     if (
       !razorpayKeyId ||
@@ -43,7 +57,10 @@ export async function POST(request: Request) {
       razorpayKeyId !== publicRazorpayKeyId
     ) {
       return NextResponse.json(
-        { error: "Razorpay test key configuration is missing or inconsistent." },
+        {
+          error:
+            "Razorpay test key configuration is missing or inconsistent.",
+        },
         { status: 500 }
       );
     }
@@ -88,7 +105,10 @@ export async function POST(request: Request) {
       !country.trim()
     ) {
       return NextResponse.json(
-        { error: "Please provide valid customer and delivery details." },
+        {
+          error:
+            "Please provide valid customer and delivery details.",
+        },
         { status: 400 }
       );
     }
@@ -150,17 +170,21 @@ export async function POST(request: Request) {
         !product.sizes.includes(item.size)
       ) {
         return NextResponse.json(
-          { error: `Invalid color or size for ${product.name}.` },
+          {
+            error: `Invalid color or size for ${product.name}.`,
+          },
           { status: 400 }
         );
       }
 
       if (
         !Number.isSafeInteger(product.price) ||
-        product.price < 0
+        product.price <= 0
       ) {
         return NextResponse.json(
-          { error: `Invalid price configuration for ${product.name}.` },
+          {
+            error: `Invalid price configuration for ${product.name}.`,
+          },
           { status: 500 }
         );
       }
@@ -218,7 +242,10 @@ export async function POST(request: Request) {
 
       if (authError || !user) {
         return NextResponse.json(
-          { error: "Your session has expired. Please sign in again." },
+          {
+            error:
+              "Your session has expired. Please sign in again.",
+          },
           { status: 401 }
         );
       }
