@@ -64,9 +64,18 @@ export default function OrdersPage() {
         if (active) {
           setOrders((data ?? []) as unknown as Order[]);
         }
-      } catch {
+      } catch (err: unknown) {
+        console.error("My Orders error:", err);
+
+        const message =
+          typeof err === "object" &&
+          err !== null &&
+          "message" in err
+            ? String(err.message)
+            : "Unknown error";
+
         if (active) {
-          setError("Unable to load your orders. Please try again.");
+          setError(`Unable to load orders: ${message}`);
         }
       } finally {
         if (active) setLoading(false);
