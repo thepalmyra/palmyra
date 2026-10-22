@@ -6,10 +6,10 @@ import { products } from "@/lib/products";
 
 export const runtime = "nodejs";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY?.trim();
 const supabasePublishableKey =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
 
 type RequestedItem = {
   id: string;
@@ -18,19 +18,47 @@ type RequestedItem = {
   quantity: number;
 };
 
+type CheckoutBody = {
+  fullName?: unknown;
+  phone?: unknown;
+  email?: unknown;
+  address?: unknown;
+  city?: unknown;
+  state?: unknown;
+  pincode?: unknown;
+  country?: unknown;
+  items?: unknown;
+};
+
+function errorResponse(message: string, status: number) {
+  return NextResponse.json({ error: message }, { status });
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export async function POST(request: Request) {
   try {
+    // 1. Check Supabase configuration.
     if (
       !supabaseUrl ||
       !supabaseSecretKey ||
       !supabasePublishableKey
     ) {
-      return NextResponse.json(
-        { error: "Supabase environment variables are missing." },
-        { status: 500 }
+      console.error("Supabase environment variables are missing.");
+
+      return errorResponse(
+        "Supabase environment variables are missing.",
+        500
       );
     }
 
+    // 2. Read Razorpay Live Mode credentials.
     const razorpayKeyId = process.env.RAZORPAY_KEY_ID?.trim();
     const razorpayKeySecret =
       process.env.RAZORPAY_KEY_SECRET?.trim();
@@ -45,34 +73,49 @@ export async function POST(request: Request) {
         Boolean(razorpayKeyId) &&
         Boolean(publicRazorpayKeyId) &&
         razorpayKeyId === publicRazorpayKeyId,
-      testModeKey: razorpayKeyId?.startsWith("rzp_test_") ?? false,
+      liveModeKey: razorpayKeyId?.startsWith("rzp_live_") ?? false,
     };
 
-    console.log("Razorpay configuration check:", keyConfig);
+    // Log only configuration checks, never credentials.
+    console.info("Razorpay configuration check:", keyConfig);
 
+    // 3. Ensure all credentials are present and match.
     if (
       !razorpayKeyId ||
       !razorpayKeySecret ||
       !publicRazorpayKeyId ||
       razorpayKeyId !== publicRazorpayKeyId
     ) {
-      return NextResponse.json(
-        {
-          error:
-            "Razorpay test key configuration is missing or inconsistent.",
-        },
-        { status: 500 }
+      return errorResponse(
+        "Razorpay Live Mode key configuration is missing or inconsistent.",
+        500
       );
     }
 
-    if (!razorpayKeyId.startsWith("rzp_test_")) {
-      return NextResponse.json(
-        { error: "Use Razorpay Test Mode keys during testing." },
-        { status: 500 }
+    // 4. Require Live Mode credentials.
+    if (!razorpayKeyId.startsWith("rzp_live_")) {
+      return errorResponse(
+        "Razorpay Live Mode keys are required.",
+        500
       );
     }
 
-    const body = await request.json();
+    // 5. Parse the checkout request safely.
+    let body: CheckoutBody;
+
+    try {
+      body = (await request.json()) as CheckoutBody;
+    } catch {
+      return errorResponse("Invalid checkout request.", 400);
+    }
+
+    if (
+      !body ||
+      typeof body !== "object" ||
+      Array.isArray(body)
+    ) {
+      return errorResponse("Invalid checkout request.", 400);
+    }
 
     const {
       fullName,
@@ -86,41 +129,33 @@ export async function POST(request: Request) {
       items,
     } = body;
 
+    // 6. Validate customer and delivery information.
     if (
-      typeof fullName !== "string" ||
-      !fullName.trim() ||
-      typeof phone !== "string" ||
-      !phone.trim() ||
-      typeof email !== "string" ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
-      typeof address !== "string" ||
-      !address.trim() ||
-      typeof city !== "string" ||
-      !city.trim() ||
-      typeof state !== "string" ||
-      !state.trim() ||
-      typeof pincode !== "string" ||
-      !pincode.trim() ||
-      typeof country !== "string" ||
-      !country.trim()
+      !isNonEmptyString(fullName) ||
+      !isNonEmptyString(phone) ||
+      !isNonEmptyString(email) ||
+      !isValidEmail(email) ||
+      !isNonEmptyString(address) ||
+      !isNonEmptyString(city) ||
+      !isNonEmptyString(state) ||
+      !isNonEmptyString(pincode) ||
+      !isNonEmptyString(country)
     ) {
-      return NextResponse.json(
-        {
-          error:
-            "Please provide valid customer and delivery details.",
-        },
-        { status: 400 }
+      return errorResponse(
+        "Please provide valid customer and delivery details.",
+        400
       );
     }
 
+    // 7. Validate cart contents.
     if (
       !Array.isArray(items) ||
       items.length === 0 ||
       items.length > 50
     ) {
-      return NextResponse.json(
-        { error: "Your cart is empty or invalid." },
-        { status: 400 }
+      return errorResponse(
+        "Your cart is empty or invalid.",
+        400
       );
     }
 
@@ -146,20 +181,21 @@ export async function POST(request: Request) {
         item.quantity < 1 ||
         item.quantity > 20
       ) {
-        return NextResponse.json(
-          { error: "A cart item has invalid options or quantity." },
-          { status: 400 }
+        return errorResponse(
+          "A cart item has invalid options or quantity.",
+          400
         );
       }
 
+      // Use the server product catalog, not client-supplied prices.
       const product = products.find(
-        (product) => product.id === item.id
+        (entry) => entry.id === item.id
       );
 
       if (!product) {
-        return NextResponse.json(
-          { error: "A product in your cart could not be found." },
-          { status: 400 }
+        return errorResponse(
+          "A product in your cart could not be found.",
+          400
         );
       }
 
@@ -169,11 +205,9 @@ export async function POST(request: Request) {
         !Array.isArray(product.sizes) ||
         !product.sizes.includes(item.size)
       ) {
-        return NextResponse.json(
-          {
-            error: `Invalid color or size for ${product.name}.`,
-          },
-          { status: 400 }
+        return errorResponse(
+          `Invalid color or size for ${product.name}.`,
+          400
         );
       }
 
@@ -181,15 +215,31 @@ export async function POST(request: Request) {
         !Number.isSafeInteger(product.price) ||
         product.price <= 0
       ) {
-        return NextResponse.json(
-          {
-            error: `Invalid price configuration for ${product.name}.`,
-          },
-          { status: 500 }
+        console.error(
+          "Invalid product price configuration:",
+          product.id
+        );
+
+        return errorResponse(
+          "A product price is incorrectly configured.",
+          500
         );
       }
 
-      subtotal += product.price * item.quantity;
+      const lineTotal = product.price * item.quantity;
+
+      if (!Number.isSafeInteger(lineTotal)) {
+        return errorResponse("The order total is invalid.", 400);
+      }
+
+      subtotal += lineTotal;
+
+      if (!Number.isSafeInteger(subtotal)) {
+        return errorResponse(
+          "The order subtotal is invalid.",
+          400
+        );
+      }
 
       validatedItems.push({
         id: product.id,
@@ -202,17 +252,27 @@ export async function POST(request: Request) {
       });
     }
 
-    if (!Number.isSafeInteger(subtotal) || subtotal <= 0) {
-      return NextResponse.json(
-        { error: "The order subtotal is invalid." },
-        { status: 400 }
+    if (subtotal <= 0) {
+      return errorResponse(
+        "The order subtotal is invalid.",
+        400
       );
     }
 
+    // 8. Calculate the order total on the server.
     const platformFee = 15;
     const deliveryFee = 0;
     const totalAmount = subtotal + platformFee + deliveryFee;
 
+    if (
+      !Number.isSafeInteger(totalAmount) ||
+      totalAmount <= 0 ||
+      totalAmount * 100 > Number.MAX_SAFE_INTEGER
+    ) {
+      return errorResponse("The order total is invalid.", 400);
+    }
+
+    // 9. Initialize Supabase.
     const supabase = createClient(
       supabaseUrl,
       supabaseSecretKey,
@@ -224,6 +284,7 @@ export async function POST(request: Request) {
       }
     );
 
+    // 10. Identify the signed-in user, if provided.
     let userId: string | null = null;
 
     const authorization = request.headers.get("authorization");
@@ -241,91 +302,127 @@ export async function POST(request: Request) {
       } = await authClient.auth.getUser(match[1]);
 
       if (authError || !user) {
-        return NextResponse.json(
-          {
-            error:
-              "Your session has expired. Please sign in again.",
-          },
-          { status: 401 }
+        return errorResponse(
+          "Your session has expired. Please sign in again.",
+          401
         );
       }
 
       userId = user.id;
     }
 
-    const { data: savedOrder, error: saveError } = await supabase
-      .from("orders")
-      .insert({
-        user_id: userId,
-        customer_name: fullName.trim(),
-        phone: phone.trim(),
-        email: email.trim(),
-        address: address.trim(),
-        city: city.trim(),
-        state: state.trim(),
-        pincode: pincode.trim(),
-        country: country.trim(),
-        items: validatedItems,
-        subtotal,
-        platform_fee: platformFee,
-        delivery_fee: deliveryFee,
-        total_amount: totalAmount,
-        status: "pending",
-        payment_status: "pending",
-      })
-      .select("id, order_number")
-      .single();
+    // 11. Save the pending order in Supabase.
+    const { data: savedOrder, error: saveError } =
+      await supabase
+        .from("orders")
+        .insert({
+          user_id: userId,
+          customer_name: fullName.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+          address: address.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          pincode: pincode.trim(),
+          country: country.trim(),
+          items: validatedItems,
+          subtotal,
+          platform_fee: platformFee,
+          delivery_fee: deliveryFee,
+          total_amount: totalAmount,
+          status: "pending",
+          payment_status: "pending",
+        })
+        .select("id, order_number")
+        .single();
 
     if (saveError || !savedOrder) {
-      console.error("Supabase order creation failed:", saveError);
+      console.error(
+        "Supabase order creation failed:",
+        saveError
+      );
 
-      return NextResponse.json(
-        { error: "Could not save your order. Please try again." },
-        { status: 500 }
+      return errorResponse(
+        "Could not save your order. Please try again.",
+        500
       );
     }
 
+    // 12. Create the Razorpay Live Mode order.
     const razorpay = new Razorpay({
       key_id: razorpayKeyId,
       key_secret: razorpayKeySecret,
     });
 
-    const razorpayOrder = await razorpay.orders.create({
-      amount: totalAmount * 100,
-      currency: "INR",
-      receipt: String(savedOrder.order_number || savedOrder.id),
-      notes: {
-        supabase_order_id: String(savedOrder.id),
-        order_number: String(savedOrder.order_number || ""),
-      },
-    });
+    // Store only the order ID to avoid the ReturnType typing issue.
+    let razorpayOrderId = "";
 
+    try {
+      const createdOrder = await razorpay.orders.create({
+        amount: totalAmount * 100,
+        currency: "INR",
+        receipt: String(
+          savedOrder.order_number || savedOrder.id
+        ),
+        notes: {
+          supabase_order_id: String(savedOrder.id),
+          order_number: String(savedOrder.order_number || ""),
+        },
+      });
+
+      if (
+        !createdOrder ||
+        typeof createdOrder.id !== "string" ||
+        !createdOrder.id
+      ) {
+        throw new Error("Razorpay returned an invalid order.");
+      }
+
+      razorpayOrderId = createdOrder.id;
+    } catch (error) {
+      console.error(
+        "Razorpay order creation failed:",
+        error instanceof Error ? error.message : "Unknown error"
+      );
+
+      return errorResponse(
+        "Payment setup failed. Your order is still pending. Please contact support before retrying.",
+        502
+      );
+    }
+
+    // 13. Save the Razorpay order ID in Supabase.
     const { error: updateError } = await supabase
       .from("orders")
       .update({
-        razorpay_order_id: razorpayOrder.id,
+        razorpay_order_id: razorpayOrderId,
       })
       .eq("id", savedOrder.id);
 
     if (updateError) {
-      console.error("Could not save Razorpay order ID:", updateError);
+      console.error(
+        "Could not save Razorpay order ID:",
+        updateError
+      );
 
       return NextResponse.json(
         {
           error:
-            "Your order was created, but payment setup failed. Please contact support before retrying.",
+            "Payment setup could not be completed. Please contact support before retrying.",
           orderNumber: savedOrder.order_number,
         },
         { status: 500 }
       );
     }
 
+    // 14. Return checkout details.
+    // Only the public Key ID is sent to the browser.
     return NextResponse.json(
       {
         success: true,
         orderId: savedOrder.id,
         orderNumber: savedOrder.order_number,
-        razorpayOrderId: razorpayOrder.id,
+        razorpayOrderId,
         keyId: razorpayKeyId,
         amount: totalAmount * 100,
         currency: "INR",
@@ -337,11 +434,14 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Order creation error:", error);
+    console.error(
+      "Order creation error:",
+      error instanceof Error ? error.message : "Unknown error"
+    );
 
-    return NextResponse.json(
-      { error: "Unable to prepare payment. Please try again." },
-      { status: 500 }
+    return errorResponse(
+      "Unable to prepare payment. Please try again.",
+      500
     );
   }
 }
