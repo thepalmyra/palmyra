@@ -4,7 +4,16 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { videos } from "@/lib/videos";
-import { products as storeProducts } from "@/lib/products";
+import { createClient } from "@/lib/supabase/client";
+
+type HomepageProduct = {
+  id: string;
+  name: string;
+  price: number;
+  original_price: number | null;
+  category: string;
+  image: string;
+};
 
 function thumbnail(video: any): string {
   return video.type === "youtube"
@@ -12,7 +21,7 @@ function thumbnail(video: any): string {
     : video.thumbnail;
 }
 
-// Online sportswear and accessory reference photography.
+// Fallback images are used only if a product has no saved image.
 function getProductImage(name: string): string {
   const productName = name.toLowerCase();
 
@@ -43,12 +52,14 @@ function getProductImage(name: string): string {
 }
 
 export default function Home() {
+  const [currentVideo, setCurrentVideo] = useState(0);
+  const [storeProducts, setStoreProducts] = useState<HomepageProduct[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+
   const palmyraVideos = videos.filter(
     (video: any) =>
       video.category === "Palmyra" && video.type === "local"
   );
-
-  const [currentVideo, setCurrentVideo] = useState(0);
 
   useEffect(() => {
     if (palmyraVideos.length <= 1) return;
@@ -60,8 +71,47 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [palmyraVideos.length]);
 
-  const featuredVideo = palmyraVideos[currentVideo];
+  useEffect(() => {
+    let cancelled = false;
 
+    async function loadProducts() {
+      try {
+        const supabase = createClient();
+
+        const { data, error } = await supabase
+          .from("products")
+          .select("id, name, price, original_price, category, image")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+
+        if (!cancelled) {
+          setStoreProducts((data ?? []) as HomepageProduct[]);
+        }
+      } catch (error) {
+        console.error("Unable to load homepage products:", error);
+
+        if (!cancelled) {
+          setStoreProducts([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setProductsLoading(false);
+        }
+      }
+    }
+
+    loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const featuredVideo = palmyraVideos[currentVideo];
   const videoCategories = ["Palmyra", "Football"];
 
   return (
@@ -294,7 +344,11 @@ export default function Home() {
             </Link>
           </div>
 
-          {storeProducts.length === 0 ? (
+          {productsLoading ? (
+            <div className="rounded-2xl border border-white/10 bg-black p-8 text-center">
+              <p className="text-gray-400">Loading Palmyra products...</p>
+            </div>
+          ) : storeProducts.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-black p-8 text-center">
               <p className="text-gray-300">
                 New Palmyra products are coming soon.
@@ -316,8 +370,8 @@ export default function Home() {
                 >
                   <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900">
                     <img
-                      src={getProductImage(product.name)}
-                      alt={`${product.name} — illustrative product reference`}
+                      src={product.image || getProductImage(product.name)}
+                      alt={product.name}
                       loading="lazy"
                       className="aspect-[3/4] w-full object-cover transition duration-500 group-hover:scale-105"
                     />
@@ -339,14 +393,14 @@ export default function Home() {
 
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="font-bold">
-                      ₹{product.price.toLocaleString("en-IN")}
+                      ₹{Number(product.price).toLocaleString("en-IN")}
                     </span>
 
-                    {product.originalPrice &&
-                      product.originalPrice > product.price && (
+                    {product.original_price !== null &&
+                      product.original_price > product.price && (
                         <span className="text-xs text-gray-500 line-through">
                           ₹
-                          {product.originalPrice.toLocaleString("en-IN")}
+                          {Number(product.original_price).toLocaleString("en-IN")}
                         </span>
                       )}
                   </div>
