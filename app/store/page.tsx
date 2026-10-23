@@ -2,23 +2,117 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { products } from "@/lib/products";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  category: string;
+  description: string;
+  image: string;
+  images: string[];
+  sizes: string[];
+  colors: string[];
+  colorImages?: Record<string, string>;
+};
+
+type DatabaseProduct = {
+  id: string;
+  name: string;
+  price: number;
+  original_price: number | null;
+  category: string;
+  description: string;
+  image: string;
+  images: string[];
+  sizes: string[];
+  colors: string[];
+  color_images: Record<string, string>;
+};
 
 const formatPrice = (price: number) =>
   `₹${price.toLocaleString("en-IN")}`;
 
 export default function StorePage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [sortBy, setSortBy] = useState("featured");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProducts() {
+      setLoading(true);
+      setLoadError("");
+
+      try {
+        const supabase = createClient();
+
+        const { data, error } = await supabase
+          .from("products")
+          .select(
+            "id, name, price, original_price, category, description, image, images, sizes, colors, color_images"
+          )
+          .eq("is_active", true)
+          .order("created_at", { ascending: true });
+
+        if (error) {
+          throw error;
+        }
+
+        const mappedProducts: Product[] = (
+          (data ?? []) as DatabaseProduct[]
+        ).map((product) => ({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          originalPrice: product.original_price ?? undefined,
+          category: product.category,
+          description: product.description ?? "",
+          image: product.image,
+          images: Array.isArray(product.images) ? product.images : [],
+          sizes: Array.isArray(product.sizes) ? product.sizes : [],
+          colors: Array.isArray(product.colors) ? product.colors : [],
+          colorImages: product.color_images ?? {},
+        }));
+
+        if (!cancelled) {
+          setProducts(mappedProducts);
+        }
+      } catch (error) {
+        console.error("Could not load store products:", error);
+
+        if (!cancelled) {
+          setLoadError(
+            "We couldn't load the collection. Please refresh the page and try again."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const categories = useMemo(
     () => [
       "All",
       ...Array.from(new Set(products.map((product) => product.category))),
     ],
-    []
+    [products]
   );
 
   const filteredProducts = useMemo(() => {
@@ -46,11 +140,10 @@ export default function StorePage() {
     }
 
     return result;
-  }, [search, activeCategory, sortBy]);
+  }, [products, search, activeCategory, sortBy]);
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#080808] text-white">
-      {/* PREMIUM HERO */}
       <section className="relative isolate flex min-h-[540px] items-center overflow-hidden border-b border-white/10 bg-black sm:min-h-[600px] lg:min-h-[690px]">
         <img
           src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=2000&q=85"
@@ -100,7 +193,7 @@ export default function StorePage() {
             <div className="mt-10 flex flex-wrap gap-x-8 gap-y-4 border-t border-white/15 pt-6">
               <div>
                 <p className="text-2xl font-black">
-                  {products.length.toString().padStart(2, "0")}
+                  {loading ? "—" : products.length.toString().padStart(2, "0")}
                   <span className="text-red-500">+</span>
                 </p>
                 <p className="mt-1 text-xs text-gray-400">
@@ -121,7 +214,6 @@ export default function StorePage() {
         </div>
       </section>
 
-      {/* COLLECTION INTRO */}
       <section
         id="products"
         className="scroll-mt-20 px-5 pb-6 pt-12 sm:px-8 md:px-12 md:pt-16"
@@ -145,7 +237,7 @@ export default function StorePage() {
 
             <p className="text-sm text-gray-400">
               <span className="font-bold text-white">
-                {filteredProducts.length}
+                {loading ? "—" : filteredProducts.length}
               </span>{" "}
               {filteredProducts.length === 1 ? "product" : "products"} found
             </p>
@@ -153,7 +245,6 @@ export default function StorePage() {
         </div>
       </section>
 
-      {/* SEARCH, FILTERS AND SORT */}
       <section className="px-5 py-5 sm:px-8 md:px-12">
         <div className="mx-auto max-w-7xl">
           <div className="rounded-2xl border border-white/10 bg-[#111111] p-4 sm:p-5">
@@ -224,15 +315,36 @@ export default function StorePage() {
         </div>
       </section>
 
-      {/* PRODUCT GRID */}
       <section className="px-5 pb-16 pt-4 sm:px-8 md:px-12 md:pb-24">
         <div className="mx-auto max-w-7xl">
-          {filteredProducts.length === 0 ? (
+          {loading ? (
+            <div className="rounded-3xl border border-white/10 px-6 py-16 text-center">
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-red-500" />
+              <p className="mt-4 text-sm text-gray-400">
+                Loading the Palmyra collection...
+              </p>
+            </div>
+          ) : loadError ? (
+            <div
+              role="alert"
+              className="rounded-3xl border border-red-500/30 px-6 py-16 text-center"
+            >
+              <h3 className="text-xl font-bold">
+                Unable to load products
+              </h3>
+              <p className="mt-3 text-sm text-gray-400">{loadError}</p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mt-6 rounded-xl bg-red-600 px-5 py-3 text-sm font-bold transition hover:bg-red-700"
+              >
+                Try again
+              </button>
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-white/15 px-6 py-16 text-center">
               <div className="text-4xl">⌕</div>
-              <h3 className="mt-4 text-xl font-bold">
-                No products found
-              </h3>
+              <h3 className="mt-4 text-xl font-bold">No products found</h3>
               <p className="mt-2 text-sm text-gray-400">
                 Try another search or select a different category.
               </p>
@@ -259,8 +371,7 @@ export default function StorePage() {
 
                 const discount = hasDiscount
                   ? Math.round(
-                      ((originalPrice - product.price) / originalPrice) *
-                        100
+                      ((originalPrice - product.price) / originalPrice) * 100
                     )
                   : 0;
 
@@ -348,7 +459,6 @@ export default function StorePage() {
         </div>
       </section>
 
-      {/* BRAND STORY */}
       <section className="px-5 pb-16 sm:px-8 md:px-12 md:pb-24">
         <div className="mx-auto grid max-w-7xl overflow-hidden rounded-3xl border border-white/10 bg-[#111111] md:grid-cols-2">
           <div className="relative min-h-[280px] overflow-hidden bg-zinc-900 sm:min-h-[360px]">
@@ -400,7 +510,6 @@ export default function StorePage() {
         </div>
       </section>
 
-      {/* TRUST / BRAND FOOTER */}
       <section className="border-t border-white/10 px-5 py-10 sm:px-8 md:px-12">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 text-center sm:flex-row sm:text-left">
           <div>
