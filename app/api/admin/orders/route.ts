@@ -1,7 +1,9 @@
+
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const allowedStatuses = [
   "pending",
@@ -28,7 +30,8 @@ async function authorizeAdmin(request: NextRequest) {
     };
   }
 
-  const token = request.headers.get("authorization")
+  const token = request.headers
+    .get("authorization")
     ?.match(/^Bearer\s+(.+)$/i)?.[1];
 
   if (!token) {
@@ -86,12 +89,34 @@ async function authorizeAdmin(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const auth = await authorizeAdmin(request);
-    if (auth.response) return auth.response;
 
-    const { data, error } = await auth.client
+    if (auth.response) {
+      return auth.response;
+    }
+
+    const { data, error } = await auth.client!
       .from("orders")
       .select(
-        "id, order_number, created_at, status, payment_status, subtotal, total_amount, items"
+        [
+          "id",
+          "order_number",
+          "created_at",
+          "status",
+          "payment_status",
+          "subtotal",
+          "platform_fee",
+          "delivery_fee",
+          "total_amount",
+          "items",
+          "customer_name",
+          "phone",
+          "email",
+          "address",
+          "city",
+          "state",
+          "pincode",
+          "country",
+        ].join(", ")
       )
       .order("created_at", { ascending: false })
       .limit(100);
@@ -105,7 +130,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ orders: data ?? [] });
+    return NextResponse.json(
+      { orders: data ?? [] },
+      {
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
+      }
+    );
   } catch (error) {
     console.error("Admin GET error:", error);
 
@@ -119,9 +151,22 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const auth = await authorizeAdmin(request);
-    if (auth.response) return auth.response;
 
-    const body = await request.json();
+    if (auth.response) {
+      return auth.response;
+    }
+
+    let body: { id?: unknown; status?: unknown };
+
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid request body." },
+        { status: 400 }
+      );
+    }
+
     const { id, status } = body;
 
     if (
@@ -138,7 +183,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const { data, error } = await auth.client
+    const { data, error } = await auth.client!
       .from("orders")
       .update({ status })
       .eq("id", id)
