@@ -11,14 +11,17 @@ type OrderItem = {
   color?: string;
   size?: string;
   quantity?: number;
-  unitPrice?: number;
-  lineTotal?: number;
+  price?: number | string;
+  unitPrice?: number | string;
+  lineTotal?: number | string;
 };
 
 type Order = {
   id: number | string;
+  order_number: string | null;
   created_at: string;
   status: string | null;
+  payment_status: string | null;
   items: OrderItem[] | null;
   subtotal: number | string;
 };
@@ -55,7 +58,9 @@ export default function OrdersPage() {
 
         const { data, error: queryError } = await supabase
           .from("orders")
-          .select("id, created_at, status, items, subtotal")
+          .select(
+            "id, order_number, created_at, status, payment_status, items, subtotal"
+          )
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
@@ -90,7 +95,17 @@ export default function OrdersPage() {
   }, []);
 
   const formatPrice = (price: number | string) =>
-    `₹${Number(price).toLocaleString("en-IN")}`;
+    `₹${Number(price).toLocaleString("en-IN", {
+      maximumFractionDigits: 2,
+    })}`;
+
+  const formatStatus = (status: string | null) => {
+    if (!status) return "Pending";
+
+    return status
+      .replace(/[_-]/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  };
 
   return (
     <main className="min-h-screen bg-black px-4 py-12 text-white sm:px-8">
@@ -105,6 +120,7 @@ export default function OrdersPage() {
         <h1 className="mt-6 text-3xl font-bold sm:text-4xl">
           My Orders
         </h1>
+
         <p className="mt-2 text-gray-400">
           View your Palmyra purchase history and order details.
         </p>
@@ -115,10 +131,14 @@ export default function OrdersPage() {
 
         {!loading && !signedIn && (
           <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-xl font-semibold">Sign in to view your orders</h2>
+            <h2 className="text-xl font-semibold">
+              Sign in to view your orders
+            </h2>
+
             <p className="mt-2 text-gray-400">
               Your order history is available when you sign in to your account.
             </p>
+
             <Link
               href="/login"
               className="mt-5 inline-block rounded-lg bg-red-600 px-5 py-3 font-semibold hover:bg-red-700"
@@ -140,9 +160,11 @@ export default function OrdersPage() {
         {!loading && signedIn && !error && orders.length === 0 && (
           <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
             <h2 className="text-xl font-semibold">No orders yet</h2>
+
             <p className="mt-2 text-gray-400">
               Orders placed while signed in will appear here.
             </p>
+
             <Link
               href="/store"
               className="mt-5 inline-block rounded-lg bg-red-600 px-5 py-3 font-semibold hover:bg-red-700"
@@ -162,46 +184,83 @@ export default function OrdersPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-4">
                   <div>
                     <p className="text-sm text-gray-400">Order number</p>
-                    <h2 className="mt-1 text-xl font-bold">#{order.id}</h2>
+
+                    <h2 className="mt-1 text-xl font-bold">
+                      {order.order_number || `#${order.id}`}
+                    </h2>
+
                     <p className="mt-2 text-sm text-gray-400">
-                      {new Date(order.created_at).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      {new Date(order.created_at).toLocaleDateString(
+                        "en-IN",
+                        {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        }
+                      )}
                     </p>
                   </div>
 
-                  <span className="rounded-full border border-white/15 px-3 py-1 text-sm text-gray-300">
-                    {order.status || "Received"}
-                  </span>
+                  <div className="space-y-2 text-right">
+                    <div>
+                      <p className="text-xs text-gray-400">Order status</p>
+                      <span className="inline-block rounded-full border border-white/15 px-3 py-1 text-sm text-gray-300">
+                        {formatStatus(order.status)}
+                      </span>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-gray-400">Payment status</p>
+                      <span
+                        className={`inline-block rounded-full border px-3 py-1 text-sm ${
+                          order.payment_status?.toLowerCase() === "paid"
+                            ? "border-green-500/40 text-green-400"
+                            : "border-yellow-500/40 text-yellow-300"
+                        }`}
+                      >
+                        {formatStatus(order.payment_status)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-5 space-y-4">
-                  {(order.items ?? []).map((item, index) => (
-                    <div
-                      key={`${item.id ?? "item"}-${index}`}
-                      className="flex flex-wrap justify-between gap-3"
-                    >
-                      <div>
+                  {(order.items ?? []).map((item, index) => {
+                    const quantity = item.quantity ?? 1;
+
+                    const unitPrice = Number(
+                      item.price ?? item.unitPrice ?? 0
+                    );
+
+                    const itemTotal =
+                      item.lineTotal != null
+                        ? Number(item.lineTotal)
+                        : unitPrice * quantity;
+
+                    return (
+                      <div
+                        key={`${item.id ?? "item"}-${index}`}
+                        className="flex flex-wrap justify-between gap-3"
+                      >
+                        <div>
+                          <p className="font-medium">
+                            {item.name || "Product"}
+                          </p>
+
+                          <p className="mt-1 text-sm text-gray-400">
+                            {[item.color, item.size]
+                              .filter(Boolean)
+                              .join(" · ")}
+                            {` · Qty: ${quantity}`}
+                          </p>
+                        </div>
+
                         <p className="font-medium">
-                          {item.name || "Product"}
-                        </p>
-                        <p className="mt-1 text-sm text-gray-400">
-                          {[item.color, item.size]
-                            .filter(Boolean)
-                            .join(" · ")}
-                          {item.quantity ? ` · Qty: ${item.quantity}` : ""}
+                          {formatPrice(itemTotal)}
                         </p>
                       </div>
-                      <p className="font-medium">
-                        {formatPrice(
-                          item.lineTotal ??
-                            (item.unitPrice ?? 0) * (item.quantity ?? 1)
-                        )}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="mt-5 flex justify-between border-t border-white/10 pt-4 text-lg font-bold">
