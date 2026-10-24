@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type OrderItem = {
@@ -49,6 +48,13 @@ type OrderStatus =
   | "shipped"
   | "delivered"
   | "cancelled";
+
+type AccessState =
+  | "checking"
+  | "signed-out"
+  | "forbidden"
+  | "error"
+  | "ready";
 
 const STATUS_OPTIONS: OrderStatus[] = [
   "pending",
@@ -112,14 +118,17 @@ const getOrderNumber = (order: Order) =>
 const getTotal = (order: Order) =>
   Number(order.total_amount ?? order.total ?? 0);
 
+const isPaid = (order: Order) =>
+  ["paid", "captured", "success", "successful"].includes(
+    normalizeStatus(order.payment_status),
+  );
+
 export default function AdminPage() {
   const supabase = useMemo(() => createClient(), []);
-  const router = useRouter();
 
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [checkingSession, setCheckingSession] = useState(true);
-  const [signedIn, setSignedIn] = useState(false);
+  const [access, setAccess] = useState<AccessState>("checking");
+  const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -127,65 +136,14 @@ export default function AdminPage() {
   const [filter, setFilter] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  // Check the session before showing any dashboard content.
-  useEffect(() => {
-    let active = true;
-
-    const checkSession = async () => {
-      try {
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-
-        if (!active) return;
-
-        if (sessionError || !session?.access_token) {
-          setSignedIn(false);
-          setOrders([]);
-          setLoading(false);
-          return;
-        }
-
-        setSignedIn(true);
-      } catch {
-        if (!active) return;
-        setSignedIn(false);
-        setOrders([]);
-        setLoading(false);
-      } finally {
-        if (active) setCheckingSession(false);
-      }
-    };
-
-    void checkSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!active) return;
-
-      if (!session) {
-        setSignedIn(false);
-        setOrders([]);
-        setLoading(false);
-        setSelectedOrder(null);
-        router.refresh();
-      } else {
-        setSignedIn(true);
-      }
-    });
-
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, [supabase, router]);
-
+  // The dashboard stays hidden until the API verifies administrator access.
   const loadOrders = useCallback(async () => {
+    setAccess("checking");
     setLoading(true);
     setError("");
     setNotice("");
+    setOrders([]);
+    setSelectedOrder(null);
 
     try {
       const {
@@ -193,31 +151,38 @@ export default function AdminPage() {
         error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (sessionError) throw sessionError;
-
-      if (!session?.access_token) {
-        setSignedIn(false);
-        setOrders([]);
+      if (sessionError || !session?.access_token) {
+        setAccess("signed-out");
         return;
       }
-
-      setSignedIn(true);
 
       const response = await fetch("/api/admin/orders", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
         },
         cache: "no-store",
       });
 
       const result = await response.json().catch(() => ({}));
 
+      if (response.status === 401) {
+        setAccess("signed-out");
+        return;
+      }
+
+      if (response.status === 403) {
+        setAccess("forbidden");
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(
-          result.error || `Unable to load orders (${response.status}).`,
+        setError(
+          result.error ||
+            `Unable to verify administrator access (${response.status}).`,
         );
+        setAccess("error");
+        return;
       }
 
       const receivedOrders = Array.isArray(result)
@@ -227,45 +192,57 @@ export default function AdminPage() {
           : null;
 
       if (!receivedOrders) {
-        throw new Error(
-          "The admin orders API returned an unexpected response.",
-        );
+        setError("The admin orders API returned an unexpected response.");
+        setAccess("error");
+        return;
       }
 
       setOrders(receivedOrders as Order[]);
+      setAccess("ready");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Unable to load orders.",
+        err instanceof Error
+          ? err.message
+          : "Unable to verify administrator access.",
       );
+      setAccess("error");
     } finally {
       setLoading(false);
     }
   }, [supabase]);
 
-  // Load orders only after a session has been confirmed.
   useEffect(() => {
-    if (checkingSession || !signedIn) return;
     void loadOrders();
-  }, [checkingSession, signedIn, loadOrders]);
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        setOrders([]);
+        setSelectedOrder(null);
+        setAccess("signed-out");
+        setLoading(false);
+      } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        void loadOrders();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [loadOrders, supabase]);
 
   const filteredOrders = useMemo(() => {
     const term = search.trim().toLowerCase();
 
     return orders.filter((order) => {
       const status = normalizeStatus(order.status);
-      const paymentStatus = normalizeStatus(order.payment_status);
-
-      const isPaid = [
-        "paid",
-        "captured",
-        "success",
-        "successful",
-      ].includes(paymentStatus);
+      const paid = isPaid(order);
 
       const matchesFilter =
         filter === "all" ||
-        (filter === "paid" && isPaid) ||
-        (filter === "unpaid" && !isPaid) ||
+        (filter === "paid" && paid) ||
+        (filter === "unpaid" && !paid) ||
         status === filter;
 
       const searchableText = [
@@ -285,11 +262,7 @@ export default function AdminPage() {
   }, [orders, search, filter]);
 
   const metrics = useMemo(() => {
-    const paidOrders = orders.filter((order) =>
-      ["paid", "captured", "success", "successful"].includes(
-        normalizeStatus(order.payment_status),
-      ),
-    );
+    const paidOrders = orders.filter(isPaid);
 
     return {
       total: orders.length,
@@ -297,10 +270,7 @@ export default function AdminPage() {
       pending: orders.filter(
         (order) => normalizeStatus(order.status) === "pending",
       ).length,
-      revenue: paidOrders.reduce(
-        (sum, order) => sum + getTotal(order),
-        0,
-      ),
+      revenue: paidOrders.reduce((sum, order) => sum + getTotal(order), 0),
     };
   }, [orders]);
 
@@ -320,11 +290,11 @@ export default function AdminPage() {
         error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (sessionError) throw sessionError;
-
-      if (!session?.access_token) {
-        setSignedIn(false);
-        throw new Error("Your session has expired. Please sign in again.");
+      if (sessionError || !session?.access_token) {
+        setAccess("signed-out");
+        setOrders([]);
+        setSelectedOrder(null);
+        return;
       }
 
       const response = await fetch("/api/admin/orders", {
@@ -334,12 +304,27 @@ export default function AdminPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          orderId: order.id,
+          id: order.id,
           status: newStatus,
         }),
+        cache: "no-store",
       });
 
       const result = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        setAccess("signed-out");
+        setOrders([]);
+        setSelectedOrder(null);
+        return;
+      }
+
+      if (response.status === 403) {
+        setAccess("forbidden");
+        setOrders([]);
+        setSelectedOrder(null);
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -397,70 +382,66 @@ export default function AdminPage() {
     }
   };
 
-  // Do not render the dashboard while checking authentication.
-  if (checkingSession) {
-    return (
-      <main className="auth-screen">
-        <div className="auth-card">
-          <div className="brand">
-            PALMYRA<span>.</span>
-          </div>
-          <p>Checking your sign-in session...</p>
-        </div>
-        <style jsx>{`
-          .auth-screen {
-            min-height: 100vh;
-            display: grid;
-            place-items: center;
-            padding: 24px;
-            background: #090909;
-            color: #f5f5f5;
-            font-family: Arial, Helvetica, sans-serif;
-          }
-          .auth-card {
-            width: 100%;
-            max-width: 420px;
-            padding: 32px;
-            border: 1px solid #292929;
-            border-radius: 16px;
-            background: #111;
-            text-align: center;
-          }
-          .brand {
-            font-size: 26px;
-            font-weight: 800;
-            letter-spacing: 2px;
-          }
-          .brand span {
-            color: #e11d2e;
-          }
-          p {
-            margin-top: 18px;
-            color: #aaa;
-            font-size: 14px;
-          }
-        `}</style>
-      </main>
-    );
-  }
+  // Never render order information or the dashboard before API authorization.
+  if (access !== "ready") {
+    const signedOut = access === "signed-out";
+    const forbidden = access === "forbidden";
+    const checking = access === "checking";
 
-  // No active session: keep the dashboard hidden.
-  if (!signedIn) {
     return (
       <main className="auth-screen">
         <div className="auth-card">
           <div className="brand">
             PALMYRA<span>.</span>
           </div>
-          <h1>Admin sign-in required</h1>
-          <p>Sign in to your administrator account to access the orders dashboard.</p>
-          <Link href="/login?next=/admin" className="login-button">
-            Go to sign in
-          </Link>
+
+          {checking ? (
+            <>
+              <h1>Verifying access</h1>
+              <p>Please wait while we verify your administrator access.</p>
+            </>
+          ) : signedOut ? (
+            <>
+              <h1>Sign-in required</h1>
+              <p>
+                Sign in to continue. You must use the administrator account
+                to access store orders.
+              </p>
+              <Link href="/login?next=/admin" className="login-button">
+                Go to sign in
+              </Link>
+            </>
+          ) : forbidden ? (
+            <>
+              <h1>Administrator access only</h1>
+              <p>
+                This account is not authorized to view store orders. Sign in
+                with your administrator account.
+              </p>
+              <Link href="/login?next=/admin" className="login-button">
+                Go to sign in
+              </Link>
+            </>
+          ) : (
+            <>
+              <h1>Unable to verify access</h1>
+              <p>{error || "Something went wrong. Please try again."}</p>
+              <button
+                type="button"
+                className="login-button"
+                onClick={() => void loadOrders()}
+                disabled={loading}
+              >
+                {loading ? "Checking..." : "Try again"}
+              </button>
+            </>
+          )}
+
           <Link href="/" className="back-link">
             Return to website
           </Link>
         </div>
+
         <style jsx>{`
           .auth-screen {
             min-height: 100vh;
@@ -498,16 +479,26 @@ export default function AdminPage() {
             color: #aaa;
             font-size: 14px;
             line-height: 1.7;
+            overflow-wrap: anywhere;
           }
           .login-button {
             display: block;
+            width: 100%;
+            box-sizing: border-box;
             padding: 13px 16px;
+            border: 0;
             border-radius: 9px;
             background: #e11d2e;
             color: #fff;
             font-size: 14px;
             font-weight: 700;
+            text-align: center;
             text-decoration: none;
+            cursor: pointer;
+          }
+          .login-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
           }
           .back-link {
             display: inline-block;
@@ -883,7 +874,7 @@ export default function AdminPage() {
               onClick={() => void loadOrders()}
               disabled={loading}
             >
-              {loading ? "Refreshing..." : "↻ Refresh orders"}
+              {loading ? "Checking access..." : "↻ Refresh orders"}
             </button>
           </div>
         </header>
@@ -1008,8 +999,12 @@ export default function AdminPage() {
                       <div className="order-id">
                         {getCustomerName(order)}
                       </div>
-                      <div className="muted">{order.email || "No email"}</div>
-                      <div className="muted">{order.phone || "No phone"}</div>
+                      <div className="muted">
+                        {order.email || "No email"}
+                      </div>
+                      <div className="muted">
+                        {order.phone || "No phone"}
+                      </div>
                     </td>
                     <td>
                       <div className="amount">{money(getTotal(order))}</div>
@@ -1142,7 +1137,9 @@ export default function AdminPage() {
               ].map(([label, value]) => (
                 <div className="detail" key={label}>
                   <span className="detail-label">{label}</span>
-                  <span className="detail-value">{value || "Not provided"}</span>
+                  <span className="detail-value">
+                    {value || "Not provided"}
+                  </span>
                 </div>
               ))}
               <div className="drawer-actions">
@@ -1178,7 +1175,9 @@ export default function AdminPage() {
                       Quantity: {item.quantity ?? 1}
                       {item.color ? ` · Colour: ${item.color}` : ""}
                       {item.size ? ` · Size: ${item.size}` : ""}
-                      {item.price != null ? ` · Price: ${money(item.price)}` : ""}
+                      {item.price != null
+                        ? ` · Price: ${money(item.price)}`
+                        : ""}
                     </div>
                   </div>
                 ))
@@ -1192,7 +1191,10 @@ export default function AdminPage() {
                 ["Platform fee", money(selectedOrder.platform_fee)],
                 ["Delivery fee", money(selectedOrder.delivery_fee)],
                 ["Total", money(getTotal(selectedOrder))],
-                ["Payment status", selectedOrder.payment_status || "pending"],
+                [
+                  "Payment status",
+                  selectedOrder.payment_status || "pending",
+                ],
                 [
                   "Payment ID",
                   selectedOrder.razorpay_payment_id || "Not available",
