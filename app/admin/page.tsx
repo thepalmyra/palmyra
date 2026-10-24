@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type OrderItem = {
@@ -89,18 +90,14 @@ const statusClass = (status?: string | null) => {
     case "delivered":
     case "captured":
       return "status-green";
-
     case "processing":
       return "status-blue";
-
     case "shipped":
       return "status-purple";
-
     case "failed":
     case "cancelled":
     case "canceled":
       return "status-red";
-
     default:
       return "status-yellow";
   }
@@ -117,15 +114,73 @@ const getTotal = (order: Order) =>
 
 export default function AdminPage() {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [signedIn, setSignedIn] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  // Check the session before showing any dashboard content.
+  useEffect(() => {
+    let active = true;
+
+    const checkSession = async () => {
+      try {
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (!active) return;
+
+        if (sessionError || !session?.access_token) {
+          setSignedIn(false);
+          setOrders([]);
+          setLoading(false);
+          return;
+        }
+
+        setSignedIn(true);
+      } catch {
+        if (!active) return;
+        setSignedIn(false);
+        setOrders([]);
+        setLoading(false);
+      } finally {
+        if (active) setCheckingSession(false);
+      }
+    };
+
+    void checkSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+
+      if (!session) {
+        setSignedIn(false);
+        setOrders([]);
+        setLoading(false);
+        setSelectedOrder(null);
+        router.refresh();
+      } else {
+        setSignedIn(true);
+      }
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase, router]);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -141,10 +196,12 @@ export default function AdminPage() {
       if (sessionError) throw sessionError;
 
       if (!session?.access_token) {
+        setSignedIn(false);
         setOrders([]);
-        setError("Please sign in with your administrator account.");
         return;
       }
+
+      setSignedIn(true);
 
       const response = await fetch("/api/admin/orders", {
         method: "GET",
@@ -185,9 +242,11 @@ export default function AdminPage() {
     }
   }, [supabase]);
 
+  // Load orders only after a session has been confirmed.
   useEffect(() => {
+    if (checkingSession || !signedIn) return;
     void loadOrders();
-  }, [loadOrders]);
+  }, [checkingSession, signedIn, loadOrders]);
 
   const filteredOrders = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -196,16 +255,17 @@ export default function AdminPage() {
       const status = normalizeStatus(order.status);
       const paymentStatus = normalizeStatus(order.payment_status);
 
+      const isPaid = [
+        "paid",
+        "captured",
+        "success",
+        "successful",
+      ].includes(paymentStatus);
+
       const matchesFilter =
         filter === "all" ||
-        (filter === "paid" &&
-          ["paid", "captured", "success", "successful"].includes(
-            paymentStatus,
-          )) ||
-        (filter === "unpaid" &&
-          !["paid", "captured", "success", "successful"].includes(
-            paymentStatus,
-          )) ||
+        (filter === "paid" && isPaid) ||
+        (filter === "unpaid" && !isPaid) ||
         status === filter;
 
       const searchableText = [
@@ -263,6 +323,7 @@ export default function AdminPage() {
       if (sessionError) throw sessionError;
 
       if (!session?.access_token) {
+        setSignedIn(false);
         throw new Error("Your session has expired. Please sign in again.");
       }
 
@@ -336,6 +397,130 @@ export default function AdminPage() {
     }
   };
 
+  // Do not render the dashboard while checking authentication.
+  if (checkingSession) {
+    return (
+      <main className="auth-screen">
+        <div className="auth-card">
+          <div className="brand">
+            PALMYRA<span>.</span>
+          </div>
+          <p>Checking your sign-in session...</p>
+        </div>
+        <style jsx>{`
+          .auth-screen {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: #090909;
+            color: #f5f5f5;
+            font-family: Arial, Helvetica, sans-serif;
+          }
+          .auth-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 32px;
+            border: 1px solid #292929;
+            border-radius: 16px;
+            background: #111;
+            text-align: center;
+          }
+          .brand {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: 2px;
+          }
+          .brand span {
+            color: #e11d2e;
+          }
+          p {
+            margin-top: 18px;
+            color: #aaa;
+            font-size: 14px;
+          }
+        `}</style>
+      </main>
+    );
+  }
+
+  // No active session: keep the dashboard hidden.
+  if (!signedIn) {
+    return (
+      <main className="auth-screen">
+        <div className="auth-card">
+          <div className="brand">
+            PALMYRA<span>.</span>
+          </div>
+          <h1>Admin sign-in required</h1>
+          <p>Sign in to your administrator account to access the orders dashboard.</p>
+          <Link href="/login?next=/admin" className="login-button">
+            Go to sign in
+          </Link>
+          <Link href="/" className="back-link">
+            Return to website
+          </Link>
+        </div>
+        <style jsx>{`
+          .auth-screen {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: #090909;
+            color: #f5f5f5;
+            font-family: Arial, Helvetica, sans-serif;
+          }
+          .auth-card {
+            width: 100%;
+            max-width: 440px;
+            padding: 34px;
+            border: 1px solid #292929;
+            border-radius: 16px;
+            background: #111;
+            text-align: center;
+          }
+          .brand {
+            margin-bottom: 28px;
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: 2px;
+          }
+          .brand span {
+            color: #e11d2e;
+          }
+          h1 {
+            margin: 0;
+            font-size: 23px;
+          }
+          p {
+            margin: 12px 0 24px;
+            color: #aaa;
+            font-size: 14px;
+            line-height: 1.7;
+          }
+          .login-button {
+            display: block;
+            padding: 13px 16px;
+            border-radius: 9px;
+            background: #e11d2e;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+          }
+          .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #aaa;
+            font-size: 13px;
+            text-decoration: none;
+          }
+        `}</style>
+      </main>
+    );
+  }
+
   return (
     <main className="admin-page">
       <style jsx>{`
@@ -346,12 +531,10 @@ export default function AdminPage() {
           color: #f5f5f5;
           font-family: Arial, Helvetica, sans-serif;
         }
-
         .container {
           max-width: 1440px;
           margin: 0 auto;
         }
-
         .topbar {
           display: flex;
           align-items: center;
@@ -359,152 +542,113 @@ export default function AdminPage() {
           gap: 20px;
           margin-bottom: 36px;
         }
-
         .brand {
           color: #f5f5f5;
           font-size: 25px;
           font-weight: 800;
           letter-spacing: 2px;
         }
-
         .brand span {
           color: #e11d2e;
         }
-
+        .subtitle,
+        .heading p,
+        .metric-note,
+        .muted,
+        .results {
+          color: #929292;
+        }
         .subtitle {
           margin-top: 8px;
-          color: #929292;
           font-size: 13px;
         }
-
-        .actions {
+        .actions,
+        .toolbar,
+        .drawer-actions {
           display: flex;
           align-items: center;
           gap: 10px;
           flex-wrap: wrap;
         }
-
-        .button {
+        .button,
+        .row-button {
           display: inline-flex;
           justify-content: center;
           align-items: center;
-          gap: 8px;
-          min-height: 42px;
-          padding: 10px 15px;
+          min-height: 40px;
+          padding: 10px 14px;
           border: 1px solid #303030;
           border-radius: 9px;
           background: #171717;
-          color: #f5f5f5;
+          color: #fff;
           font-size: 13px;
           font-weight: 700;
           text-decoration: none;
           cursor: pointer;
         }
-
-        .button:hover {
-          border-color: #666;
-          background: #202020;
-        }
-
         .button-primary {
           border-color: #e11d2e;
           background: #e11d2e;
-          color: #fff;
         }
-
-        .button-primary:hover {
-          border-color: #f03443;
-          background: #c81727;
-        }
-
-        .button:disabled {
+        button:disabled {
           cursor: not-allowed;
           opacity: 0.55;
         }
-
         .heading {
           margin-bottom: 22px;
         }
-
         .heading h1 {
           margin: 0;
           font-size: clamp(26px, 4vw, 36px);
-          font-weight: 800;
-          letter-spacing: -1px;
         }
-
         .heading p {
-          margin: 9px 0 0;
-          color: #929292;
           font-size: 14px;
           line-height: 1.6;
         }
-
         .metrics {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 16px;
           margin-bottom: 28px;
         }
-
-        .metric {
-          padding: 22px;
+        .metric,
+        .table-wrap,
+        .section {
           border: 1px solid #292929;
           border-radius: 14px;
           background: #111;
         }
-
+        .metric {
+          padding: 22px;
+        }
         .metric-label {
-          color: #a1a1a1;
+          color: #aaa;
           font-size: 12px;
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 1px;
         }
-
         .metric-value {
           margin-top: 15px;
           font-size: clamp(24px, 3vw, 34px);
           font-weight: 800;
           overflow-wrap: anywhere;
         }
-
-        .metric-note {
+        .metric-note,
+        .muted {
           margin-top: 8px;
-          color: #858585;
           font-size: 12px;
+          line-height: 1.5;
+          overflow-wrap: anywhere;
         }
-
         .toolbar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 14px;
           margin-bottom: 18px;
-          flex-wrap: wrap;
         }
-
-        .search {
-          flex: 1;
-          min-width: 220px;
-          min-height: 44px;
-          padding: 12px 14px;
-          border: 1px solid #303030;
-          border-radius: 9px;
-          outline: none;
-          background: #121212;
-          color: #fff;
-          font-size: 14px;
-        }
-
-        .search:focus,
-        .select:focus {
-          border-color: #e11d2e;
-        }
-
-        .select {
-          min-height: 44px;
-          padding: 10px 14px;
+        .search,
+        .select,
+        .status-select {
+          min-height: 42px;
+          padding: 10px 12px;
           border: 1px solid #303030;
           border-radius: 9px;
           outline: none;
@@ -512,193 +656,113 @@ export default function AdminPage() {
           color: #fff;
           font-size: 13px;
         }
-
-        .results {
-          color: #999;
-          font-size: 12px;
+        .search {
+          flex: 1;
+          min-width: 220px;
         }
-
+        .table-wrap {
+          overflow-x: auto;
+        }
+        .orders-table {
+          width: 100%;
+          border-collapse: collapse;
+          text-align: left;
+        }
+        th {
+          padding: 15px;
+          border-bottom: 1px solid #292929;
+          background: #151515;
+          color: #999;
+          font-size: 11px;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+        td {
+          padding: 16px;
+          border-bottom: 1px solid #242424;
+          color: #ddd;
+          font-size: 13px;
+          vertical-align: top;
+        }
+        .order-id,
+        .amount {
+          color: #fff;
+          font-weight: 800;
+        }
+        .amount {
+          white-space: nowrap;
+        }
+        .status {
+          display: inline-flex;
+          padding: 6px 9px;
+          border: 1px solid #444;
+          border-radius: 20px;
+          font-size: 10px;
+          font-weight: 800;
+          text-transform: uppercase;
+        }
+        .status-green {
+          color: #8fe0ad;
+          background: #11251a;
+          border-color: #286342;
+        }
+        .status-yellow {
+          color: #f2d58a;
+          background: #241d0d;
+          border-color: #66521f;
+        }
+        .status-red {
+          color: #ff9ca5;
+          background: #281215;
+          border-color: #6c2c34;
+        }
+        .status-blue {
+          color: #9bc8ff;
+          background: #111d2c;
+          border-color: #294d7a;
+        }
+        .status-purple {
+          color: #d0b4ff;
+          background: #1c142a;
+          border-color: #513b7a;
+        }
+        .status-select {
+          width: 130px;
+          max-width: 100%;
+        }
         .alert {
           margin: 16px 0;
           padding: 14px 16px;
           border: 1px solid #383838;
           border-radius: 10px;
           background: #141414;
-          color: #e7e7e7;
           font-size: 13px;
           line-height: 1.6;
           overflow-wrap: anywhere;
         }
-
         .alert-error {
           border-color: #71313a;
           background: #241114;
           color: #ffb8bf;
         }
-
         .alert-success {
           border-color: #285c3c;
           background: #102117;
           color: #a9edc0;
         }
-
-        .table-wrap {
-          overflow-x: auto;
-          border: 1px solid #292929;
-          border-radius: 14px;
-          background: #101010;
-        }
-
-        .orders-table {
-          width: 100%;
-          border-collapse: collapse;
-          text-align: left;
-        }
-
-        .orders-table th {
-          padding: 16px;
-          border-bottom: 1px solid #292929;
-          background: #151515;
-          color: #999;
-          font-size: 11px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 0.8px;
-          white-space: nowrap;
-        }
-
-        .orders-table td {
-          padding: 17px 16px;
-          border-bottom: 1px solid #242424;
-          color: #dedede;
-          font-size: 13px;
-          vertical-align: top;
-        }
-
-        .orders-table tbody tr:last-child td {
-          border-bottom: 0;
-        }
-
-        .orders-table tbody tr:hover {
-          background: #151515;
-        }
-
-        .order-id {
-          color: #fff;
-          font-weight: 800;
-        }
-
-        .muted {
-          margin-top: 6px;
-          color: #858585;
-          font-size: 12px;
-          line-height: 1.5;
-          overflow-wrap: anywhere;
-        }
-
-        .amount {
-          color: #fff;
-          font-weight: 800;
-          white-space: nowrap;
-        }
-
-        .status {
-          display: inline-flex;
-          align-items: center;
-          padding: 6px 9px;
-          border: 1px solid #3b3b3b;
-          border-radius: 20px;
-          font-size: 10px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          white-space: nowrap;
-        }
-
-        .status-green {
-          border-color: #286342;
-          background: #11251a;
-          color: #8fe0ad;
-        }
-
-        .status-yellow {
-          border-color: #66521f;
-          background: #241d0d;
-          color: #f2d58a;
-        }
-
-        .status-red {
-          border-color: #6c2c34;
-          background: #281215;
-          color: #ff9ca5;
-        }
-
-        .status-blue {
-          border-color: #294d7a;
-          background: #111d2c;
-          color: #9bc8ff;
-        }
-
-        .status-purple {
-          border-color: #513b7a;
-          background: #1c142a;
-          color: #d0b4ff;
-        }
-
-        .status-select {
-          width: 130px;
-          max-width: 100%;
-          padding: 8px;
-          border: 1px solid #333;
-          border-radius: 7px;
-          background: #171717;
-          color: #fff;
-          font-size: 12px;
-        }
-
-        .row-button {
-          padding: 8px 10px;
-          border: 1px solid #373737;
-          border-radius: 7px;
-          background: #1b1b1b;
-          color: #fff;
-          font-size: 12px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .row-button:hover {
-          border-color: #e11d2e;
-        }
-
-        .row-button:disabled {
-          cursor: not-allowed;
-          opacity: 0.5;
-        }
-
         .empty {
-          padding: 55px 20px !important;
-          color: #929292 !important;
+          padding: 45px 20px;
+          color: #929292;
           text-align: center;
-          line-height: 1.8;
         }
-
-        .empty strong {
-          display: block;
-          margin-bottom: 7px;
-          color: #eee;
-          font-size: 16px;
-        }
-
         .overlay {
           position: fixed;
           inset: 0;
           z-index: 50;
           display: flex;
           justify-content: flex-end;
-          background: rgba(0, 0, 0, 0.75);
+          background: rgb(0 0 0 / 75%);
         }
-
         .drawer {
           width: min(540px, 100%);
           height: 100%;
@@ -707,29 +771,22 @@ export default function AdminPage() {
           border-left: 1px solid #333;
           background: #101010;
         }
-
         .drawer-header {
           display: flex;
-          align-items: flex-start;
           justify-content: space-between;
           gap: 16px;
           margin-bottom: 25px;
         }
-
         .drawer-header h2 {
           margin: 0;
           font-size: 23px;
           overflow-wrap: anywhere;
         }
-
         .section {
           margin-top: 22px;
           padding: 18px;
-          border: 1px solid #2d2d2d;
-          border-radius: 12px;
           background: #151515;
         }
-
         .section h3 {
           margin: 0 0 15px;
           color: #aaa;
@@ -737,7 +794,6 @@ export default function AdminPage() {
           text-transform: uppercase;
           letter-spacing: 1px;
         }
-
         .detail {
           display: flex;
           justify-content: space-between;
@@ -746,96 +802,62 @@ export default function AdminPage() {
           font-size: 13px;
           line-height: 1.6;
         }
-
         .detail + .detail {
           border-top: 1px solid #292929;
         }
-
         .detail-label {
           flex-shrink: 0;
           color: #929292;
         }
-
         .detail-value {
           color: #f0f0f0;
           text-align: right;
           overflow-wrap: anywhere;
         }
-
         .item {
           padding: 12px 0;
           border-bottom: 1px solid #2a2a2a;
         }
-
-        .item:last-child {
-          border-bottom: 0;
-        }
-
         .item-name {
           color: #fff;
           font-size: 13px;
           font-weight: 700;
-          overflow-wrap: anywhere;
         }
-
         .item-meta {
           margin-top: 6px;
           color: #999;
           font-size: 12px;
           line-height: 1.6;
         }
-
-        .drawer-actions {
-          display: flex;
-          gap: 10px;
-          margin-top: 18px;
-          flex-wrap: wrap;
-        }
-
         @media (max-width: 900px) {
           .admin-page {
             padding: 22px 16px;
           }
-
           .metrics {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
-
-          .topbar {
-            align-items: flex-start;
-          }
         }
-
         @media (max-width: 560px) {
           .admin-page {
             padding: 18px 12px;
           }
-
           .topbar {
+            align-items: flex-start;
             flex-direction: column;
           }
-
           .metrics {
             gap: 10px;
           }
-
           .metric {
             padding: 16px;
           }
-
-          .metric-label {
-            font-size: 10px;
-          }
-
           .toolbar {
             align-items: stretch;
           }
-
           .search,
           .select {
             width: 100%;
           }
-
           .drawer {
             padding: 18px;
           }
@@ -855,7 +877,6 @@ export default function AdminPage() {
             <Link href="/" className="button">
               View website
             </Link>
-
             <button
               type="button"
               className="button button-primary"
@@ -879,21 +900,18 @@ export default function AdminPage() {
           <div className="metric">
             <div className="metric-label">Total orders</div>
             <div className="metric-value">{metrics.total}</div>
-            <div className="metric-note">All orders returned by the API</div>
+            <div className="metric-note">Orders returned by the API</div>
           </div>
-
           <div className="metric">
             <div className="metric-label">Paid orders</div>
             <div className="metric-value">{metrics.paid}</div>
             <div className="metric-note">Payments marked successful</div>
           </div>
-
           <div className="metric">
             <div className="metric-label">Pending fulfilment</div>
             <div className="metric-value">{metrics.pending}</div>
-            <div className="metric-note">Orders awaiting processing</div>
+            <div className="metric-note">Awaiting processing</div>
           </div>
-
           <div className="metric">
             <div className="metric-label">Paid revenue</div>
             <div className="metric-value">{money(metrics.revenue)}</div>
@@ -958,7 +976,6 @@ export default function AdminPage() {
                 <th>Details</th>
               </tr>
             </thead>
-
             <tbody>
               {loading ? (
                 <tr>
@@ -969,7 +986,8 @@ export default function AdminPage() {
               ) : filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="empty">
-                    <strong>No orders found</strong>
+                    <strong>No orders found.</strong>
+                    <br />
                     {orders.length === 0
                       ? "No orders were returned by the admin API."
                       : "Try changing your search or filter."}
@@ -986,7 +1004,6 @@ export default function AdminPage() {
                         {formatDate(order.created_at)}
                       </div>
                     </td>
-
                     <td>
                       <div className="order-id">
                         {getCustomerName(order)}
@@ -994,29 +1011,21 @@ export default function AdminPage() {
                       <div className="muted">{order.email || "No email"}</div>
                       <div className="muted">{order.phone || "No phone"}</div>
                     </td>
-
                     <td>
                       <div className="amount">{money(getTotal(order))}</div>
                     </td>
-
                     <td>
                       <span
-                        className={`status ${statusClass(
-                          order.payment_status,
-                        )}`}
+                        className={`status ${statusClass(order.payment_status)}`}
                       >
                         {order.payment_status || "pending"}
                       </span>
                     </td>
-
                     <td>
-                      <span
-                        className={`status ${statusClass(order.status)}`}
-                      >
+                      <span className={`status ${statusClass(order.status)}`}>
                         {order.status || "pending"}
                       </span>
                     </td>
-
                     <td>
                       <select
                         className="status-select"
@@ -1034,9 +1043,7 @@ export default function AdminPage() {
                             event.target.value as OrderStatus,
                           )
                         }
-                        aria-label={`Update status for ${getOrderNumber(
-                          order,
-                        )}`}
+                        aria-label={`Update status for ${getOrderNumber(order)}`}
                       >
                         {STATUS_OPTIONS.map((status) => (
                           <option key={status} value={status}>
@@ -1044,12 +1051,10 @@ export default function AdminPage() {
                           </option>
                         ))}
                       </select>
-
                       {updatingId === order.id && (
                         <div className="muted">Saving...</div>
                       )}
                     </td>
-
                     <td>
                       <button
                         type="button"
@@ -1092,12 +1097,10 @@ export default function AdminPage() {
                   {formatDate(selectedOrder.created_at)}
                 </div>
               </div>
-
               <button
                 type="button"
                 className="button"
                 onClick={() => setSelectedOrder(null)}
-                aria-label="Close order details"
               >
                 Close
               </button>
@@ -1105,21 +1108,18 @@ export default function AdminPage() {
 
             <section className="section">
               <h3>Customer information</h3>
-
               <div className="detail">
                 <span className="detail-label">Name</span>
                 <span className="detail-value">
                   {getCustomerName(selectedOrder)}
                 </span>
               </div>
-
               <div className="detail">
                 <span className="detail-label">Email</span>
                 <span className="detail-value">
                   {selectedOrder.email || "Not provided"}
                 </span>
               </div>
-
               <div className="detail">
                 <span className="detail-label">Phone</span>
                 <span className="detail-value">
@@ -1130,44 +1130,21 @@ export default function AdminPage() {
 
             <section className="section">
               <h3>Shipping address</h3>
-
-              <div className="detail">
-                <span className="detail-label">Address</span>
-                <span className="detail-value">
-                  {selectedOrder.address || "Not provided"}
-                </span>
-              </div>
-
-              <div className="detail">
-                <span className="detail-label">City</span>
-                <span className="detail-value">
-                  {selectedOrder.city || "Not provided"}
-                </span>
-              </div>
-
-              <div className="detail">
-                <span className="detail-label">State</span>
-                <span className="detail-value">
-                  {selectedOrder.state || "Not provided"}
-                </span>
-              </div>
-
-              <div className="detail">
-                <span className="detail-label">PIN code</span>
-                <span className="detail-value">
-                  {selectedOrder.pincode ||
-                    selectedOrder.postal_code ||
-                    "Not provided"}
-                </span>
-              </div>
-
-              <div className="detail">
-                <span className="detail-label">Country</span>
-                <span className="detail-value">
-                  {selectedOrder.country || "Not provided"}
-                </span>
-              </div>
-
+              {[
+                ["Address", selectedOrder.address],
+                ["City", selectedOrder.city],
+                ["State", selectedOrder.state],
+                [
+                  "PIN code",
+                  selectedOrder.pincode || selectedOrder.postal_code,
+                ],
+                ["Country", selectedOrder.country],
+              ].map(([label, value]) => (
+                <div className="detail" key={label}>
+                  <span className="detail-label">{label}</span>
+                  <span className="detail-value">{value || "Not provided"}</span>
+                </div>
+              ))}
               <div className="drawer-actions">
                 <button
                   type="button"
@@ -1181,7 +1158,6 @@ export default function AdminPage() {
 
             <section className="section">
               <h3>Items</h3>
-
               {!Array.isArray(selectedOrder.items) ||
               selectedOrder.items.length === 0 ? (
                 <div className="muted">No item details available.</div>
@@ -1198,14 +1174,11 @@ export default function AdminPage() {
                         item.id ||
                         "Product"}
                     </div>
-
                     <div className="item-meta">
                       Quantity: {item.quantity ?? 1}
                       {item.color ? ` · Colour: ${item.color}` : ""}
                       {item.size ? ` · Size: ${item.size}` : ""}
-                      {item.price != null
-                        ? ` · Price: ${money(item.price)}`
-                        : ""}
+                      {item.price != null ? ` · Price: ${money(item.price)}` : ""}
                     </div>
                   </div>
                 ))
@@ -1214,67 +1187,36 @@ export default function AdminPage() {
 
             <section className="section">
               <h3>Payment and totals</h3>
-
-              <div className="detail">
-                <span className="detail-label">Subtotal</span>
-                <span className="detail-value">
-                  {money(selectedOrder.subtotal)}
-                </span>
-              </div>
-
-              <div className="detail">
-                <span className="detail-label">Platform fee</span>
-                <span className="detail-value">
-                  {money(selectedOrder.platform_fee)}
-                </span>
-              </div>
-
-              <div className="detail">
-                <span className="detail-label">Delivery fee</span>
-                <span className="detail-value">
-                  {money(selectedOrder.delivery_fee)}
-                </span>
-              </div>
-
-              <div className="detail">
-                <span className="detail-label">Total</span>
-                <span className="detail-value">
-                  <strong>{money(getTotal(selectedOrder))}</strong>
-                </span>
-              </div>
-
-              <div className="detail">
-                <span className="detail-label">Payment status</span>
-                <span className="detail-value">
-                  {selectedOrder.payment_status || "pending"}
-                </span>
-              </div>
-
-              <div className="detail">
-                <span className="detail-label">Payment ID</span>
-                <span className="detail-value">
-                  {selectedOrder.razorpay_payment_id || "Not available"}
-                </span>
-              </div>
-
-              <div className="detail">
-                <span className="detail-label">Payment order ID</span>
-                <span className="detail-value">
-                  {selectedOrder.razorpay_order_id || "Not available"}
-                </span>
-              </div>
+              {[
+                ["Subtotal", money(selectedOrder.subtotal)],
+                ["Platform fee", money(selectedOrder.platform_fee)],
+                ["Delivery fee", money(selectedOrder.delivery_fee)],
+                ["Total", money(getTotal(selectedOrder))],
+                ["Payment status", selectedOrder.payment_status || "pending"],
+                [
+                  "Payment ID",
+                  selectedOrder.razorpay_payment_id || "Not available",
+                ],
+                [
+                  "Payment order ID",
+                  selectedOrder.razorpay_order_id || "Not available",
+                ],
+              ].map(([label, value]) => (
+                <div className="detail" key={label}>
+                  <span className="detail-label">{label}</span>
+                  <span className="detail-value">{value}</span>
+                </div>
+              ))}
             </section>
 
             <section className="section">
               <h3>Fulfilment</h3>
-
               <div className="detail">
                 <span className="detail-label">Current status</span>
                 <span className="detail-value">
                   {selectedOrder.status || "pending"}
                 </span>
               </div>
-
               <label
                 htmlFor="drawer-status"
                 className="detail-label"
@@ -1282,7 +1224,6 @@ export default function AdminPage() {
               >
                 Update fulfilment status
               </label>
-
               <select
                 id="drawer-status"
                 className="select"
