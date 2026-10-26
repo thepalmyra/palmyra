@@ -402,7 +402,9 @@ export default function AdminPage() {
             <>
               <div className="loader" aria-hidden="true" />
               <h1>Verifying access</h1>
-              <p>Please wait while we securely verify your administrator access.</p>
+              <p>
+                Please wait while we securely verify your administrator access.
+              </p>
             </>
           ) : signedOut ? (
             <>
@@ -455,9 +457,7 @@ export default function AdminPage() {
             <span aria-hidden="true">←</span> Return to website
           </Link>
 
-          <p className="security-note">
-            Protected administrator access
-          </p>
+          <p className="security-note">Protected administrator access</p>
         </div>
 
         <style jsx>{`
@@ -526,7 +526,9 @@ export default function AdminPage() {
             animation: spin 0.8s linear infinite;
           }
           @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+              transform: rotate(360deg);
+            }
           }
           h1 {
             margin: 0;
@@ -653,7 +655,7 @@ export default function AdminPage() {
           align-items: center;
           justify-content: space-between;
           gap: 20px;
-          margin-bottom: 36px;
+          margin-bottom: 26px;
         }
         .brand {
           color: #f5f5f5;
@@ -676,12 +678,47 @@ export default function AdminPage() {
           font-size: 13px;
         }
         .actions,
+        .navigation,
         .toolbar,
         .drawer-actions {
           display: flex;
           align-items: center;
           gap: 10px;
           flex-wrap: wrap;
+        }
+        .navigation {
+          margin-bottom: 30px;
+          padding: 12px;
+          border: 1px solid #292929;
+          border-radius: 13px;
+          background: #111;
+        }
+        .nav-link {
+          display: inline-flex;
+          min-height: 42px;
+          box-sizing: border-box;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px 15px;
+          border: 1px solid #303030;
+          border-radius: 9px;
+          background: #171717;
+          color: #ddd;
+          font-size: 13px;
+          font-weight: 700;
+          text-decoration: none;
+          transition: border-color 0.2s ease, background 0.2s ease;
+        }
+        .nav-link:hover {
+          border-color: #666;
+          background: #202020;
+          color: #fff;
+        }
+        .nav-link-active {
+          border-color: #e11d2e;
+          background: #291114;
+          color: #fff;
         }
         .button,
         .row-button {
@@ -1008,13 +1045,22 @@ export default function AdminPage() {
           .topbar {
             flex-direction: column;
             gap: 18px;
-            margin-bottom: 28px;
+            margin-bottom: 22px;
           }
           .actions {
             width: 100%;
           }
           .actions .button {
             flex: 1;
+          }
+          .navigation {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            padding: 9px;
+          }
+          .nav-link {
+            padding: 10px 8px;
+            font-size: 12px;
           }
           .metrics {
             gap: 10px;
@@ -1051,6 +1097,9 @@ export default function AdminPage() {
           .auth-card {
             padding: 26px 18px;
           }
+          .navigation {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
 
@@ -1077,6 +1126,25 @@ export default function AdminPage() {
             </button>
           </div>
         </header>
+
+        <nav className="navigation" aria-label="Admin navigation">
+          <Link
+            href="/admin"
+            className="nav-link nav-link-active"
+            aria-current="page"
+          >
+            ◫ Orders Dashboard
+          </Link>
+          <Link href="/admin/products" className="nav-link">
+            ▣ Manage Products →
+          </Link>
+          <Link href="/admin/videos" className="nav-link">
+            ▷ Video Cards
+          </Link>
+          <Link href="/admin/analytics" className="nav-link">
+            ◴ Business Analytics
+          </Link>
+        </nav>
 
         <section className="heading">
           <h1>Orders dashboard</h1>
@@ -1105,7 +1173,9 @@ export default function AdminPage() {
           <div className="metric">
             <div className="metric-label">Paid revenue</div>
             <div className="metric-value">{money(metrics.revenue)}</div>
-            <div className="metric-note">Total value of paid orders shown</div>
+            <div className="metric-note">
+              Total value of paid orders shown
+            </div>
           </div>
         </section>
 
