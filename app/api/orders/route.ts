@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY?.trim();
@@ -37,6 +38,7 @@ type DatabaseProduct = {
   colors: unknown;
   sizes: unknown;
   is_active: boolean;
+  is_out_of_stock: boolean;
 };
 
 function errorResponse(message: string, status: number) {
@@ -63,7 +65,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Read Razorpay Live Mode credentials.
+    // 2. Read Razorpay credentials.
     const razorpayKeyId = process.env.RAZORPAY_KEY_ID?.trim();
     const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
     const publicRazorpayKeyId =
@@ -80,7 +82,7 @@ export async function POST(request: Request) {
       liveModeKey: razorpayKeyId?.startsWith("rzp_live_") ?? false,
     };
 
-    // Never log the credentials themselves.
+    // Never log credentials themselves.
     console.info("Razorpay configuration check:", keyConfig);
 
     if (
@@ -146,7 +148,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 6. Validate cart contents before querying the database.
+    // 6. Validate cart contents.
     if (!Array.isArray(items) || items.length === 0 || items.length > 50) {
       return errorResponse("Your cart is empty or invalid.", 400);
     }
@@ -154,11 +156,7 @@ export async function POST(request: Request) {
     const requestedItems: RequestedItem[] = [];
 
     for (const item of items as unknown[]) {
-      if (
-        !item ||
-        typeof item !== "object" ||
-        Array.isArray(item)
-      ) {
+      if (!item || typeof item !== "object" || Array.isArray(item)) {
         return errorResponse("A cart item is invalid.", 400);
       }
 
@@ -180,7 +178,7 @@ export async function POST(request: Request) {
       }
 
       requestedItems.push({
-        id: candidate.id,
+        id: candidate.id.trim(),
         color: candidate.color,
         size: candidate.size,
         quantity: candidate.quantity as number,
@@ -199,15 +197,17 @@ export async function POST(request: Request) {
       }
     );
 
-    // 8. Load current active products from Supabase.
-    // Prices and options sent by the browser are never trusted.
+    // 8. Load active products, including their explicit availability status.
+    // Browser-submitted prices are never trusted.
     const productIds = [
       ...new Set(requestedItems.map((item) => item.id)),
     ];
 
     const { data: databaseProducts, error: productsError } = await supabase
       .from("products")
-      .select("id, name, price, image, colors, sizes, is_active")
+      .select(
+        "id, name, price, image, colors, sizes, is_active, is_out_of_stock"
+      )
       .in("id", productIds)
       .eq("is_active", true);
 
@@ -230,7 +230,7 @@ export async function POST(request: Request) {
       ])
     );
 
-    // 9. Validate products and calculate prices from the database.
+    // 9. Validate availability, product options and database prices.
     const validatedItems: {
       id: string;
       name: string;
@@ -250,6 +250,15 @@ export async function POST(request: Request) {
         return errorResponse(
           "A product in your cart is unavailable. Please refresh your cart.",
           400
+        );
+      }
+
+      // Stop checkout when admin has marked this product out of stock.
+      // This check happens before the order or Razorpay order is created.
+      if (product.is_out_of_stock) {
+        return errorResponse(
+          `${product.name} is currently out of stock. Please remove it from your cart to continue.`,
+          409
         );
       }
 
@@ -275,10 +284,7 @@ export async function POST(request: Request) {
         typeof product.image !== "string" ||
         !product.image.trim()
       ) {
-        console.error(
-          "Invalid product configuration:",
-          product.id
-        );
+        console.error("Invalid product configuration:", product.id);
 
         return errorResponse(
           "A product is incorrectly configured. Please contact support.",
