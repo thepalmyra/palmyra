@@ -1127,25 +1127,6 @@ export default function AdminPage() {
           </div>
         </header>
 
-        <nav className="navigation" aria-label="Admin navigation">
-          <Link
-            href="/admin"
-            className="nav-link nav-link-active"
-            aria-current="page"
-          >
-            ◫ Orders Dashboard
-          </Link>
-          <Link href="/admin/products" className="nav-link">
-            ▣ Manage Products →
-          </Link>
-          <Link href="/admin/videos" className="nav-link">
-            ▷ Video Cards
-          </Link>
-          <Link href="/admin/analytics" className="nav-link">
-            ◴ Business Analytics
-          </Link>
-        </nav>
-
         <section className="heading">
           <h1>Orders dashboard</h1>
           <p>
