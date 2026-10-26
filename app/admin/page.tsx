@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -5,18 +6,18 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type OrderItem = {
-  id?: string;
+  id?: string | number;
   name?: string;
   title?: string;
   product_name?: string;
   quantity?: number;
-  price?: number;
+  price?: number | string;
   color?: string;
   size?: string;
 };
 
 type Order = {
-  id: string;
+  id: string | number;
   order_number?: string | null;
   created_at?: string | null;
   customer_name?: string | null;
@@ -95,6 +96,8 @@ const statusClass = (status?: string | null) => {
     case "paid":
     case "delivered":
     case "captured":
+    case "success":
+    case "successful":
       return "status-green";
     case "processing":
       return "status-blue";
@@ -113,7 +116,7 @@ const getCustomerName = (order: Order) =>
   order.customer_name || order.full_name || order.name || "Customer";
 
 const getOrderNumber = (order: Order) =>
-  order.order_number || order.id;
+  order.order_number || String(order.id);
 
 const getTotal = (order: Order) =>
   Number(order.total_amount ?? order.total ?? 0);
@@ -136,7 +139,6 @@ export default function AdminPage() {
   const [filter, setFilter] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  // The dashboard stays hidden until the API verifies administrator access.
   const loadOrders = useCallback(async () => {
     setAccess("checking");
     setLoading(true);
@@ -179,7 +181,7 @@ export default function AdminPage() {
       if (!response.ok) {
         setError(
           result.error ||
-            `Unable to verify administrator access (${response.status}).`,
+            `Unable to load orders. Server returned ${response.status}.`,
         );
         setAccess("error");
         return;
@@ -192,7 +194,7 @@ export default function AdminPage() {
           : null;
 
       if (!receivedOrders) {
-        setError("The admin orders API returned an unexpected response.");
+        setError("The orders API returned an unexpected response.");
         setAccess("error");
         return;
       }
@@ -203,7 +205,7 @@ export default function AdminPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to verify administrator access.",
+          : "Unable to connect to the orders API.",
       );
       setAccess("error");
     } finally {
@@ -227,9 +229,7 @@ export default function AdminPage() {
       }
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [loadOrders, supabase]);
 
   const filteredOrders = useMemo(() => {
@@ -247,7 +247,7 @@ export default function AdminPage() {
 
       const searchableText = [
         getOrderNumber(order),
-        order.id,
+        String(order.id),
         getCustomerName(order),
         order.email,
         order.phone,
@@ -280,7 +280,7 @@ export default function AdminPage() {
   ) => {
     if (normalizeStatus(order.status) === newStatus) return;
 
-    setUpdatingId(order.id);
+    setUpdatingId(String(order.id));
     setError("");
     setNotice("");
 
@@ -340,12 +340,14 @@ export default function AdminPage() {
 
       setOrders((current) =>
         current.map((item) =>
-          item.id === order.id ? { ...item, ...updatedOrder } : item,
+          String(item.id) === String(order.id)
+            ? { ...item, ...updatedOrder }
+            : item,
         ),
       );
 
       setSelectedOrder((current) =>
-        current?.id === order.id
+        current && String(current.id) === String(order.id)
           ? { ...current, ...updatedOrder }
           : current,
       );
@@ -382,7 +384,6 @@ export default function AdminPage() {
     }
   };
 
-  // Never render order information or the dashboard before API authorization.
   if (access !== "ready") {
     const signedOut = access === "signed-out";
     const forbidden = access === "forbidden";
@@ -391,39 +392,45 @@ export default function AdminPage() {
     return (
       <main className="auth-screen">
         <div className="auth-card">
-          <div className="brand">
+          <Link href="/" className="brand" aria-label="Palmyra home">
             PALMYRA<span>.</span>
-          </div>
+          </Link>
+
+          <div className="brand-caption">STORE ADMINISTRATION</div>
 
           {checking ? (
             <>
+              <div className="loader" aria-hidden="true" />
               <h1>Verifying access</h1>
-              <p>Please wait while we verify your administrator access.</p>
+              <p>Please wait while we securely verify your administrator access.</p>
             </>
           ) : signedOut ? (
             <>
+              <div className="auth-icon">↗</div>
               <h1>Sign-in required</h1>
               <p>
-                Sign in to continue. You must use the administrator account
-                to access store orders.
+                Sign in to continue to your Palmyra store dashboard. You must
+                use the administrator account to access customer orders.
               </p>
               <Link href="/login?next=/admin" className="login-button">
-                Go to sign in
+                Go to sign in <span aria-hidden="true">→</span>
               </Link>
             </>
           ) : forbidden ? (
             <>
+              <div className="auth-icon">!</div>
               <h1>Administrator access only</h1>
               <p>
-                This account is not authorized to view store orders. Sign in
-                with your administrator account.
+                Your account is signed in, but it is not authorized to manage
+                store orders. Sign in with the configured administrator account.
               </p>
               <Link href="/login?next=/admin" className="login-button">
-                Go to sign in
+                Return to sign in <span aria-hidden="true">→</span>
               </Link>
             </>
           ) : (
             <>
+              <div className="auth-icon">!</div>
               <h1>Unable to verify access</h1>
               <p>{error || "Something went wrong. Please try again."}</p>
               <button
@@ -433,79 +440,193 @@ export default function AdminPage() {
                 disabled={loading}
               >
                 {loading ? "Checking..." : "Try again"}
+                <span aria-hidden="true">→</span>
               </button>
             </>
           )}
 
+          <div className="auth-divider">
+            <span />
+            <span>PALMYRA STORE</span>
+            <span />
+          </div>
+
           <Link href="/" className="back-link">
-            Return to website
+            <span aria-hidden="true">←</span> Return to website
           </Link>
+
+          <p className="security-note">
+            Protected administrator access
+          </p>
         </div>
 
         <style jsx>{`
           .auth-screen {
             min-height: 100vh;
+            box-sizing: border-box;
             display: grid;
             place-items: center;
-            padding: 24px;
-            background: #090909;
+            padding: 32px 20px;
+            background:
+              radial-gradient(ellipse at 50% 0%, #281015 0%, transparent 48%),
+              #090909;
             color: #f5f5f5;
             font-family: Arial, Helvetica, sans-serif;
           }
           .auth-card {
             width: 100%;
-            max-width: 440px;
-            padding: 34px;
-            border: 1px solid #292929;
-            border-radius: 16px;
-            background: #111;
+            max-width: 430px;
+            box-sizing: border-box;
+            padding: 40px;
+            border: 1px solid #303030;
+            border-radius: 20px;
+            background: rgb(17 17 17 / 96%);
+            box-shadow: 0 24px 90px rgb(0 0 0 / 40%);
             text-align: center;
           }
           .brand {
-            margin-bottom: 28px;
-            font-size: 26px;
-            font-weight: 800;
-            letter-spacing: 2px;
+            display: inline-block;
+            color: #fff;
+            font-size: 30px;
+            font-weight: 900;
+            letter-spacing: 3px;
+            text-decoration: none;
           }
           .brand span {
             color: #e11d2e;
           }
+          .brand-caption {
+            margin-top: 9px;
+            margin-bottom: 36px;
+            color: #777;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2.5px;
+          }
+          .auth-icon {
+            width: 48px;
+            height: 48px;
+            display: grid;
+            place-items: center;
+            margin: 0 auto 20px;
+            border: 1px solid #57252b;
+            border-radius: 15px;
+            background: #261115;
+            color: #ff7884;
+            font-size: 23px;
+            font-weight: 800;
+          }
+          .loader {
+            width: 30px;
+            height: 30px;
+            margin: 0 auto 22px;
+            border: 3px solid #383838;
+            border-top-color: #e11d2e;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
           h1 {
             margin: 0;
-            font-size: 23px;
+            color: #fff;
+            font-size: clamp(23px, 5vw, 29px);
+            line-height: 1.3;
+            letter-spacing: -0.7px;
+            overflow-wrap: anywhere;
           }
           p {
-            margin: 12px 0 24px;
+            margin: 14px 0 0;
             color: #aaa;
             font-size: 14px;
-            line-height: 1.7;
+            line-height: 1.8;
             overflow-wrap: anywhere;
           }
           .login-button {
-            display: block;
+            display: flex;
             width: 100%;
+            min-height: 50px;
             box-sizing: border-box;
-            padding: 13px 16px;
-            border: 0;
-            border-radius: 9px;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 28px;
+            padding: 14px 20px;
+            border: 1px solid #e11d2e;
+            border-radius: 10px;
             background: #e11d2e;
             color: #fff;
+            font-family: inherit;
             font-size: 14px;
             font-weight: 700;
             text-align: center;
             text-decoration: none;
             cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+          }
+          .login-button:hover {
+            background: #c91626;
+            transform: translateY(-1px);
           }
           .login-button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
+            transform: none;
+          }
+          .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 30px;
+            color: #656565;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+          }
+          .auth-divider span:first-child,
+          .auth-divider span:last-child {
+            height: 1px;
+            flex: 1;
+            background: #2d2d2d;
           }
           .back-link {
-            display: inline-block;
-            margin-top: 20px;
-            color: #aaa;
+            display: flex;
+            width: fit-content;
+            min-height: 42px;
+            box-sizing: border-box;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            margin: 24px auto 0;
+            padding: 11px 17px;
+            border: 1px solid #333;
+            border-radius: 9px;
+            color: #ccc;
             font-size: 13px;
+            font-weight: 600;
             text-decoration: none;
+            transition: color 0.2s ease, border-color 0.2s ease;
+          }
+          .back-link:hover {
+            color: #fff;
+            border-color: #777;
+          }
+          .security-note {
+            margin-top: 24px;
+            color: #666;
+            font-size: 11px;
+          }
+          @media (max-width: 480px) {
+            .auth-screen {
+              padding: 20px 14px;
+            }
+            .auth-card {
+              padding: 30px 22px;
+            }
+            .brand-caption {
+              margin-bottom: 30px;
+            }
           }
         `}</style>
       </main>
@@ -518,6 +639,7 @@ export default function AdminPage() {
         .admin-page {
           min-height: 100vh;
           padding: 32px;
+          box-sizing: border-box;
           background: #090909;
           color: #f5f5f5;
           font-family: Arial, Helvetica, sans-serif;
@@ -536,7 +658,7 @@ export default function AdminPage() {
         .brand {
           color: #f5f5f5;
           font-size: 25px;
-          font-weight: 800;
+          font-weight: 900;
           letter-spacing: 2px;
         }
         .brand span {
@@ -566,20 +688,32 @@ export default function AdminPage() {
           display: inline-flex;
           justify-content: center;
           align-items: center;
-          min-height: 40px;
+          min-height: 42px;
+          box-sizing: border-box;
           padding: 10px 14px;
           border: 1px solid #303030;
           border-radius: 9px;
           background: #171717;
           color: #fff;
+          font-family: inherit;
           font-size: 13px;
           font-weight: 700;
           text-decoration: none;
           cursor: pointer;
+          transition: border-color 0.2s ease, background 0.2s ease;
+        }
+        .button:hover,
+        .row-button:hover {
+          border-color: #666;
+          background: #202020;
         }
         .button-primary {
           border-color: #e11d2e;
           background: #e11d2e;
+        }
+        .button-primary:hover {
+          border-color: #c91626;
+          background: #c91626;
         }
         button:disabled {
           cursor: not-allowed;
@@ -590,11 +724,12 @@ export default function AdminPage() {
         }
         .heading h1 {
           margin: 0;
-          font-size: clamp(26px, 4vw, 36px);
+          font-size: clamp(27px, 4vw, 38px);
+          letter-spacing: -1px;
         }
         .heading p {
           font-size: 14px;
-          line-height: 1.6;
+          line-height: 1.7;
         }
         .metrics {
           display: grid;
@@ -610,18 +745,19 @@ export default function AdminPage() {
           background: #111;
         }
         .metric {
+          min-width: 0;
           padding: 22px;
         }
         .metric-label {
           color: #aaa;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 1px;
         }
         .metric-value {
           margin-top: 15px;
-          font-size: clamp(24px, 3vw, 34px);
+          font-size: clamp(23px, 3vw, 34px);
           font-weight: 800;
           overflow-wrap: anywhere;
         }
@@ -629,7 +765,7 @@ export default function AdminPage() {
         .muted {
           margin-top: 8px;
           font-size: 12px;
-          line-height: 1.5;
+          line-height: 1.6;
           overflow-wrap: anywhere;
         }
         .toolbar {
@@ -638,18 +774,30 @@ export default function AdminPage() {
         .search,
         .select,
         .status-select {
-          min-height: 42px;
+          min-height: 44px;
+          box-sizing: border-box;
           padding: 10px 12px;
           border: 1px solid #303030;
           border-radius: 9px;
           outline: none;
           background: #121212;
           color: #fff;
+          font-family: inherit;
           font-size: 13px;
         }
         .search {
           flex: 1;
           min-width: 220px;
+        }
+        .search:focus,
+        .select:focus,
+        .status-select:focus {
+          border-color: #a43a44;
+          box-shadow: 0 0 0 2px rgb(225 29 46 / 12%);
+        }
+        .results {
+          font-size: 12px;
+          white-space: nowrap;
         }
         .table-wrap {
           overflow-x: auto;
@@ -664,7 +812,8 @@ export default function AdminPage() {
           border-bottom: 1px solid #292929;
           background: #151515;
           color: #999;
-          font-size: 11px;
+          font-size: 10px;
+          letter-spacing: 0.8px;
           text-transform: uppercase;
           white-space: nowrap;
         }
@@ -674,6 +823,12 @@ export default function AdminPage() {
           color: #ddd;
           font-size: 13px;
           vertical-align: top;
+        }
+        tbody tr:last-child td {
+          border-bottom: 0;
+        }
+        tbody tr:hover td {
+          background: #141414;
         }
         .order-id,
         .amount {
@@ -685,12 +840,14 @@ export default function AdminPage() {
         }
         .status {
           display: inline-flex;
+          align-items: center;
           padding: 6px 9px;
           border: 1px solid #444;
           border-radius: 20px;
           font-size: 10px;
           font-weight: 800;
           text-transform: uppercase;
+          white-space: nowrap;
         }
         .status-green {
           color: #8fe0ad;
@@ -728,7 +885,7 @@ export default function AdminPage() {
           border-radius: 10px;
           background: #141414;
           font-size: 13px;
-          line-height: 1.6;
+          line-height: 1.7;
           overflow-wrap: anywhere;
         }
         .alert-error {
@@ -745,6 +902,7 @@ export default function AdminPage() {
           padding: 45px 20px;
           color: #929292;
           text-align: center;
+          line-height: 1.8;
         }
         .overlay {
           position: fixed;
@@ -757,13 +915,16 @@ export default function AdminPage() {
         .drawer {
           width: min(540px, 100%);
           height: 100%;
+          box-sizing: border-box;
           overflow-y: auto;
           padding: 26px;
           border-left: 1px solid #333;
           background: #101010;
+          box-shadow: -20px 0 70px rgb(0 0 0 / 25%);
         }
         .drawer-header {
           display: flex;
+          align-items: flex-start;
           justify-content: space-between;
           gap: 16px;
           margin-bottom: 25px;
@@ -789,7 +950,7 @@ export default function AdminPage() {
           display: flex;
           justify-content: space-between;
           gap: 18px;
-          padding: 9px 0;
+          padding: 10px 0;
           font-size: 13px;
           line-height: 1.6;
         }
@@ -801,6 +962,7 @@ export default function AdminPage() {
           color: #929292;
         }
         .detail-value {
+          min-width: 0;
           color: #f0f0f0;
           text-align: right;
           overflow-wrap: anywhere;
@@ -809,32 +971,50 @@ export default function AdminPage() {
           padding: 12px 0;
           border-bottom: 1px solid #2a2a2a;
         }
+        .item:last-child {
+          border-bottom: 0;
+        }
         .item-name {
           color: #fff;
           font-size: 13px;
           font-weight: 700;
+          overflow-wrap: anywhere;
         }
         .item-meta {
           margin-top: 6px;
           color: #999;
           font-size: 12px;
-          line-height: 1.6;
+          line-height: 1.7;
+          overflow-wrap: anywhere;
         }
-        @media (max-width: 900px) {
+        .drawer-actions {
+          margin-top: 16px;
+        }
+        @media (max-width: 1000px) {
           .admin-page {
             padding: 22px 16px;
           }
           .metrics {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
+          .topbar {
+            align-items: flex-start;
+          }
         }
-        @media (max-width: 560px) {
+        @media (max-width: 650px) {
           .admin-page {
             padding: 18px 12px;
           }
           .topbar {
-            align-items: flex-start;
             flex-direction: column;
+            gap: 18px;
+            margin-bottom: 28px;
+          }
+          .actions {
+            width: 100%;
+          }
+          .actions .button {
+            flex: 1;
           }
           .metrics {
             gap: 10px;
@@ -842,15 +1022,34 @@ export default function AdminPage() {
           .metric {
             padding: 16px;
           }
+          .metric-value {
+            font-size: 25px;
+          }
           .toolbar {
             align-items: stretch;
+            flex-direction: column;
           }
           .search,
-          .select {
+          .toolbar .select {
             width: 100%;
+            min-width: 0;
+          }
+          .results {
+            white-space: normal;
           }
           .drawer {
             padding: 18px;
+          }
+          .detail {
+            gap: 12px;
+          }
+        }
+        @media (max-width: 360px) {
+          .metrics {
+            grid-template-columns: 1fr;
+          }
+          .auth-card {
+            padding: 26px 18px;
           }
         }
       `}</style>
@@ -874,7 +1073,7 @@ export default function AdminPage() {
               onClick={() => void loadOrders()}
               disabled={loading}
             >
-              {loading ? "Checking access..." : "↻ Refresh orders"}
+              {loading ? "Loading..." : "↻ Refresh orders"}
             </button>
           </div>
         </header>
@@ -882,8 +1081,8 @@ export default function AdminPage() {
         <section className="heading">
           <h1>Orders dashboard</h1>
           <p>
-            Manage customer orders, review payments, and update fulfilment
-            status.
+            Manage customer orders, review payment status, and update
+            fulfilment progress.
           </p>
         </section>
 
@@ -901,12 +1100,12 @@ export default function AdminPage() {
           <div className="metric">
             <div className="metric-label">Pending fulfilment</div>
             <div className="metric-value">{metrics.pending}</div>
-            <div className="metric-note">Awaiting processing</div>
+            <div className="metric-note">Orders awaiting processing</div>
           </div>
           <div className="metric">
             <div className="metric-label">Paid revenue</div>
             <div className="metric-value">{money(metrics.revenue)}</div>
-            <div className="metric-note">Total value of paid orders</div>
+            <div className="metric-note">Total value of paid orders shown</div>
           </div>
         </section>
 
@@ -927,7 +1126,7 @@ export default function AdminPage() {
           <input
             className="search"
             type="search"
-            placeholder="Search order number, customer, email, phone..."
+            placeholder="Search order, customer, email, phone..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             aria-label="Search orders"
@@ -950,7 +1149,7 @@ export default function AdminPage() {
           </select>
 
           <span className="results">
-            {filteredOrders.length} of {orders.length} orders
+            Showing {filteredOrders.length} of {orders.length} orders
           </span>
         </section>
 
@@ -986,7 +1185,7 @@ export default function AdminPage() {
                 </tr>
               ) : (
                 filteredOrders.map((order) => (
-                  <tr key={order.id}>
+                  <tr key={String(order.id)}>
                     <td>
                       <div className="order-id">
                         {getOrderNumber(order)}
@@ -1031,7 +1230,7 @@ export default function AdminPage() {
                             ? normalizeStatus(order.status)
                             : "pending"
                         }
-                        disabled={updatingId === order.id}
+                        disabled={updatingId === String(order.id)}
                         onChange={(event) =>
                           void updateStatus(
                             order,
@@ -1046,7 +1245,7 @@ export default function AdminPage() {
                           </option>
                         ))}
                       </select>
-                      {updatingId === order.id && (
+                      {updatingId === String(order.id) && (
                         <div className="muted">Saving...</div>
                       )}
                     </td>
@@ -1237,7 +1436,7 @@ export default function AdminPage() {
                     ? normalizeStatus(selectedOrder.status)
                     : "pending"
                 }
-                disabled={updatingId === selectedOrder.id}
+                disabled={updatingId === String(selectedOrder.id)}
                 onChange={(event) =>
                   void updateStatus(
                     selectedOrder,
