@@ -9,6 +9,7 @@ type Product = {
   id: string;
   name: string;
   price: number;
+  originalPrice: number | null;
   category: string;
   description: string;
   image: string;
@@ -24,6 +25,7 @@ type DatabaseProduct = {
   id: string;
   name: string;
   price: number | string;
+  original_price: number | string | null;
   category: string;
   description: string | null;
   image: string | null;
@@ -92,7 +94,7 @@ export default function StorePage() {
         const { data, error } = await supabase
           .from("products")
           .select(
-            "id, name, price, category, description, image, images, sizes, colors, color_images, is_on_sale, is_out_of_stock"
+            "id, name, price, original_price, category, description, image, images, sizes, colors, color_images, is_on_sale, is_out_of_stock"
           )
           .eq("is_active", true)
           .order("created_at", { ascending: true });
@@ -107,6 +109,10 @@ export default function StorePage() {
           id: product.id,
           name: product.name,
           price: Number(product.price),
+          originalPrice:
+            product.original_price == null
+              ? null
+              : Number(product.original_price),
           category: product.category ?? "Collection",
           description: product.description ?? "",
           image: product.image ?? "",
@@ -517,105 +523,142 @@ export default function StorePage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4">
-                {filteredProducts.map((product, index) => (
-                  <article
-                    key={product.id}
-                    className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-[#101010] transition duration-300 hover:-translate-y-1 hover:border-white/20 hover:shadow-2xl hover:shadow-black/40 sm:rounded-3xl"
-                  >
-                    <Link
-                      href={`/store/${product.id}`}
-                      className="block"
-                      aria-label={`View ${product.name}`}
+                {filteredProducts.map((product) => {
+                  const hasDiscount =
+                    product.originalPrice !== null &&
+                    product.originalPrice > product.price;
+
+                  const discountPercentage = hasDiscount
+                    ? Math.round(
+                        ((product.originalPrice! - product.price) /
+                          product.originalPrice!) *
+                          100
+                      )
+                    : 0;
+
+                  return (
+                    <article
+                      key={product.id}
+                      className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-[#101010] transition duration-300 hover:-translate-y-1 hover:border-white/20 hover:shadow-2xl hover:shadow-black/40 sm:rounded-3xl"
                     >
-                      <div className="relative isolate overflow-hidden bg-[#171717]">
-                        {product.image ? (
-                          <img
-                            src={product.image}
-                            alt={product.name}
-                            loading="lazy"
-                            className="aspect-[4/5] w-full object-cover transition duration-700 ease-out group-hover:scale-[1.045]"
-                          />
-                        ) : (
-                          <div className="flex aspect-[4/5] items-center justify-center bg-gradient-to-br from-zinc-900 to-black text-sm text-zinc-600">
-                            Palmyra
-                          </div>
-                        )}
-
-                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15" />
-
-                        {/* Product status badges */}
-                        <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-1rem)] flex-col items-start gap-2 sm:left-3 sm:top-3">
-                          {product.isOutOfStock && (
-                            <span className="inline-flex rounded-full border border-white/20 bg-black/90 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-white shadow-lg backdrop-blur-md sm:px-3 sm:text-[10px]">
-                              Out of Stock
-                            </span>
+                      <Link
+                        href={`/store/${product.id}`}
+                        className="block"
+                        aria-label={`View ${product.name}`}
+                      >
+                        <div className="relative isolate overflow-hidden bg-[#171717]">
+                          {product.image ? (
+                            <img
+                              src={product.image}
+                              alt={product.name}
+                              loading="lazy"
+                              className="aspect-[4/5] w-full object-cover transition duration-700 ease-out group-hover:scale-[1.045]"
+                            />
+                          ) : (
+                            <div className="flex aspect-[4/5] items-center justify-center bg-gradient-to-br from-zinc-900 to-black text-sm text-zinc-600">
+                              Palmyra
+                            </div>
                           )}
 
+                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15" />
+
+                          {/* Product status badges */}
+                          <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-1rem)] flex-col items-start gap-2 sm:left-3 sm:top-3">
+                            {product.isOutOfStock && (
+                              <span className="inline-flex rounded-full border border-white/20 bg-black/90 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-white shadow-lg backdrop-blur-md sm:px-3 sm:text-[10px]">
+                                Out of Stock
+                              </span>
+                            )}
+
+                            {product.isOnSale && (
+                              <span className="inline-flex rounded-full bg-amber-300 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-black shadow-lg sm:px-3 sm:text-[10px]">
+                                On Sale
+                              </span>
+                            )}
+
+                            {hasDiscount && (
+                              <span className="inline-flex rounded-full bg-red-600 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-white shadow-lg sm:px-3 sm:text-[10px]">
+                                {discountPercentage}% OFF
+                              </span>
+                            )}
+                          </div>
+
+                          <span className="absolute bottom-3 left-3 max-w-[75%] truncate rounded-full border border-white/20 bg-black/45 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-white backdrop-blur-md sm:bottom-4 sm:left-4 sm:text-[10px]">
+                            {product.category}
+                          </span>
+
+                          <span className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-black transition duration-300 group-hover:bg-red-600 group-hover:text-white sm:bottom-4 sm:right-4 sm:h-10 sm:w-10">
+                            <ArrowIcon className="h-4 w-4 -rotate-45 transition-transform group-hover:rotate-0 sm:h-5 sm:w-5" />
+                          </span>
+                        </div>
+                      </Link>
+
+                      <div className="flex flex-1 flex-col p-3 sm:p-5">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500 sm:text-[10px] sm:tracking-[0.2em]">
+                            {product.category}
+                          </p>
                           {product.isOnSale && (
-                            <span className="inline-flex rounded-full bg-amber-300 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-black shadow-lg sm:px-3 sm:text-[10px]">
-                              On Sale
+                            <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-amber-300 sm:text-[10px]">
+                              Special offer
                             </span>
                           )}
                         </div>
 
-                        <span className="absolute bottom-3 left-3 max-w-[75%] truncate rounded-full border border-white/20 bg-black/45 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-white backdrop-blur-md sm:bottom-4 sm:left-4 sm:text-[10px]">
-                          {product.category}
-                        </span>
+                        <Link
+                          href={`/store/${product.id}`}
+                          className="mt-2"
+                        >
+                          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-5 transition group-hover:text-red-400 sm:min-h-[3rem] sm:text-base sm:leading-6">
+                            {product.name}
+                          </h3>
+                        </Link>
 
-                        <span className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-black transition duration-300 group-hover:bg-red-600 group-hover:text-white sm:bottom-4 sm:right-4 sm:h-10 sm:w-10">
-                          <ArrowIcon className="h-4 w-4 -rotate-45 transition-transform group-hover:rotate-0 sm:h-5 sm:w-5" />
-                        </span>
-                      </div>
-                    </Link>
-
-                    <div className="flex flex-1 flex-col p-3 sm:p-5">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500 sm:text-[10px] sm:tracking-[0.2em]">
-                          {product.category}
+                        <p className="mt-2 line-clamp-2 min-h-10 text-[11px] leading-5 text-zinc-500 sm:text-xs sm:leading-5">
+                          {product.description}
                         </p>
-                        {product.isOnSale && (
-                          <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-amber-300 sm:text-[10px]">
-                            Special offer
-                          </span>
-                        )}
+
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.07] pt-4">
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                            <span className="text-base font-black tracking-tight text-white sm:text-xl">
+                              {formatPrice(product.price)}
+                            </span>
+
+                            {hasDiscount && (
+                              <>
+                                <span className="text-[10px] text-zinc-500 line-through sm:text-xs">
+                                  MRP {formatPrice(product.originalPrice!)}
+                                </span>
+
+                                <span className="text-[10px] font-bold text-red-400 sm:text-xs">
+                                  Save{" "}
+                                  {formatPrice(
+                                    product.originalPrice! - product.price
+                                  )}
+                                </span>
+                              </>
+                            )}
+                          </div>
+
+                          {product.colors.length > 0 && (
+                            <span className="text-[10px] text-zinc-500 sm:text-xs">
+                              {product.colors.length} colour
+                              {product.colors.length === 1 ? "" : "s"}
+                            </span>
+                          )}
+                        </div>
+
+                        <Link
+                          href={`/store/${product.id}`}
+                          className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-3 text-[11px] font-bold transition duration-300 hover:bg-red-700 sm:min-h-11 sm:text-xs"
+                        >
+                          View product
+                          <ArrowIcon className="h-4 w-4" />
+                        </Link>
                       </div>
-
-                      <Link
-                        href={`/store/${product.id}`}
-                        className="mt-2"
-                      >
-                        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-5 transition group-hover:text-red-400 sm:min-h-[3rem] sm:text-base sm:leading-6">
-                          {product.name}
-                        </h3>
-                      </Link>
-
-                      <p className="mt-2 line-clamp-2 min-h-10 text-[11px] leading-5 text-zinc-500 sm:text-xs sm:leading-5">
-                        {product.description}
-                      </p>
-
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.07] pt-4">
-                        <span className="text-base font-black tracking-tight sm:text-xl">
-                          {formatPrice(product.price)}
-                        </span>
-
-                        {product.colors.length > 0 && (
-                          <span className="text-[10px] text-zinc-500 sm:text-xs">
-                            {product.colors.length} colour
-                            {product.colors.length === 1 ? "" : "s"}
-                          </span>
-                        )}
-                      </div>
-
-                      <Link
-                        href={`/store/${product.id}`}
-                        className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-3 text-[11px] font-bold transition duration-300 hover:bg-red-700 sm:min-h-11 sm:text-xs"
-                      >
-                        View product
-                        <ArrowIcon className="h-4 w-4" />
-                      </Link>
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             </>
           )}
