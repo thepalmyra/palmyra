@@ -1,6 +1,7 @@
 
 "use client";
 
+import "./admin-polish.css";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
