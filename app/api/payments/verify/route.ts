@@ -5,6 +5,11 @@ import Razorpay from "razorpay";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function errorResponse(message: string, status: number) {
+  return NextResponse.json({ error: message }, { status });
+}
 
 export async function POST(request: Request) {
   try {
@@ -25,18 +30,16 @@ export async function POST(request: Request) {
       !publicKeyId ||
       keyId !== publicKeyId
     ) {
-      return NextResponse.json(
-        { error: "Payment verification is not configured correctly." },
-        { status: 500 }
+      return errorResponse(
+        "Payment verification is not configured correctly.",
+        500
       );
     }
 
-    // This endpoint must use the same Live Mode credentials
-    // as the endpoint that creates the Razorpay order.
     if (!keyId.startsWith("rzp_live_")) {
-      return NextResponse.json(
-        { error: "Razorpay Live Mode keys are required." },
-        { status: 500 }
+      return errorResponse(
+        "Razorpay Live Mode keys are required.",
+        500
       );
     }
 
@@ -50,17 +53,17 @@ export async function POST(request: Request) {
         typeof parsedBody !== "object" ||
         Array.isArray(parsedBody)
       ) {
-        return NextResponse.json(
-          { error: "Invalid payment verification request." },
-          { status: 400 }
+        return errorResponse(
+          "Invalid payment verification request.",
+          400
         );
       }
 
       body = parsedBody as Record<string, unknown>;
     } catch {
-      return NextResponse.json(
-        { error: "Invalid payment verification request." },
-        { status: 400 }
+      return errorResponse(
+        "Invalid payment verification request.",
+        400
       );
     }
 
@@ -74,19 +77,19 @@ export async function POST(request: Request) {
         typeof orderId !== "number") ||
       !/^\d+$/.test(String(orderId)) ||
       typeof razorpayOrderId !== "string" ||
-      !razorpayOrderId ||
+      !razorpayOrderId.trim() ||
       typeof razorpayPaymentId !== "string" ||
-      !razorpayPaymentId ||
+      !razorpayPaymentId.trim() ||
       typeof razorpaySignature !== "string" ||
       !/^[a-f0-9]{64}$/i.test(razorpaySignature)
     ) {
-      return NextResponse.json(
-        { error: "Invalid payment verification details." },
-        { status: 400 }
+      return errorResponse(
+        "Invalid payment verification details.",
+        400
       );
     }
 
-    // Verify Razorpay's payment signature.
+    // Verify Razorpay's signature using a constant-time comparison.
     const expectedSignature = createHmac("sha256", keySecret)
       .update(`${razorpayOrderId}|${razorpayPaymentId}`)
       .digest();
@@ -100,9 +103,9 @@ export async function POST(request: Request) {
       expectedSignature.length !== receivedSignature.length ||
       !timingSafeEqual(expectedSignature, receivedSignature)
     ) {
-      return NextResponse.json(
-        { error: "Payment signature verification failed." },
-        { status: 400 }
+      return errorResponse(
+        "Payment signature verification failed.",
+        400
       );
     }
 
@@ -117,10 +120,11 @@ export async function POST(request: Request) {
       }
     );
 
+    // Match both the database order ID and its Razorpay order ID.
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select(
-        "id, order_number, total_amount, payment_status, razorpay_order_id"
+        "id, order_number, total_amount, payment_status, razorpay_order_id, razorpay_payment_id"
       )
       .eq("id", String(orderId))
       .eq("razorpay_order_id", razorpayOrderId)
@@ -129,16 +133,27 @@ export async function POST(request: Request) {
     if (orderError) {
       console.error("Could not read order:", orderError);
 
-      return NextResponse.json(
-        { error: "Could not check the Palmyra order status." },
-        { status: 500 }
+      return errorResponse(
+        "Could not check the Palmyra order status.",
+        500
       );
     }
 
     if (!order) {
-      return NextResponse.json(
-        { error: "The matching Palmyra order could not be found." },
-        { status: 404 }
+      return errorResponse(
+        "The matching Palmyra order could not be found.",
+        404
+      );
+    }
+
+    // Never replace a payment ID already associated with this order.
+    if (
+      order.razorpay_payment_id &&
+      order.razorpay_payment_id !== razorpayPaymentId
+    ) {
+      return errorResponse(
+        "A different payment is already associated with this order. Please contact support.",
+        409
       );
     }
 
@@ -148,9 +163,9 @@ export async function POST(request: Request) {
       !Number.isSafeInteger(expectedAmount) ||
       expectedAmount <= 0
     ) {
-      return NextResponse.json(
-        { error: "The saved order amount is invalid." },
-        { status: 500 }
+      return errorResponse(
+        "The saved order amount is invalid.",
+        500
       );
     }
 
@@ -159,7 +174,7 @@ export async function POST(request: Request) {
       key_secret: keySecret,
     });
 
-    // Check the actual payment status with Razorpay.
+    // Verify payment details directly with Razorpay.
     let payment = await razorpay.payments.fetch(
       razorpayPaymentId
     );
@@ -169,16 +184,16 @@ export async function POST(request: Request) {
       payment.amount !== expectedAmount ||
       payment.currency !== "INR"
     ) {
-      return NextResponse.json(
-        { error: "The payment does not match this order's amount." },
-        { status: 400 }
+      return errorResponse(
+        "The payment does not match this order's amount.",
+        400
       );
     }
 
-    // If another request already marked this order paid,
-    // confirm that Razorpay still reports a captured payment.
+    // An already-paid order is successful only for the same payment ID.
     if (order.payment_status === "paid") {
       if (
+        order.razorpay_payment_id === razorpayPaymentId &&
         payment.status === "captured" &&
         payment.captured === true
       ) {
@@ -199,7 +214,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Capture an authorized payment if it has not been captured.
+    // Capture an authorized payment, then verify its final status again.
     if (payment.status === "authorized") {
       try {
         await razorpay.payments.capture(
@@ -208,17 +223,29 @@ export async function POST(request: Request) {
           "INR"
         );
       } catch (captureError) {
+        // Capture may have succeeded despite a network/API error.
+        // Fetch the payment again before deciding what happened.
         console.error(
           "Payment capture request failed:",
           captureError instanceof Error
             ? captureError.message
             : "Unknown error"
         );
-        // Fetch the payment again: capture might have succeeded.
       }
 
       payment = await razorpay.payments.fetch(
         razorpayPaymentId
+      );
+    }
+
+    if (
+      payment.order_id !== razorpayOrderId ||
+      payment.amount !== expectedAmount ||
+      payment.currency !== "INR"
+    ) {
+      return errorResponse(
+        "The payment does not match this order's amount.",
+        400
       );
     }
 
@@ -236,7 +263,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Mark the order paid only after confirming capture.
+    // Update only an order that has not already been marked paid.
     const { data: updatedOrder, error: updateError } =
       await supabase
         .from("orders")
@@ -266,54 +293,72 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!updatedOrder) {
-      // Handle a concurrent verification request safely.
-      const { data: currentOrder, error: currentOrderError } =
-        await supabase
-          .from("orders")
-          .select("payment_status, order_number")
-          .eq("id", String(orderId))
-          .eq("razorpay_order_id", razorpayOrderId)
-          .maybeSingle();
+    if (updatedOrder) {
+      return NextResponse.json({
+        success: true,
+        orderNumber: updatedOrder.order_number,
+        paymentStatus: "paid",
+      });
+    }
 
-      if (
-        !currentOrderError &&
-        currentOrder?.payment_status === "paid"
-      ) {
-        return NextResponse.json({
-          success: true,
-          orderNumber: currentOrder.order_number,
-          paymentStatus: "paid",
-        });
-      }
+    // Another verification request may have updated the order first.
+    const {
+      data: currentOrder,
+      error: currentOrderError,
+    } = await supabase
+      .from("orders")
+      .select(
+        "payment_status, order_number, razorpay_payment_id"
+      )
+      .eq("id", String(orderId))
+      .eq("razorpay_order_id", razorpayOrderId)
+      .maybeSingle();
 
-      return NextResponse.json(
-        {
-          error:
-            "Payment was captured, but the order status needs support review. Do not pay again.",
-          orderNumber: order.order_number,
-        },
-        { status: 500 }
+    if (currentOrderError) {
+      console.error(
+        "Could not recheck order after payment update:",
+        currentOrderError
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      orderNumber: updatedOrder.order_number,
-      paymentStatus: "paid",
-    });
+    if (
+      currentOrder?.payment_status === "paid" &&
+      currentOrder.razorpay_payment_id === razorpayPaymentId
+    ) {
+      return NextResponse.json({
+        success: true,
+        orderNumber: currentOrder.order_number,
+        paymentStatus: "paid",
+      });
+    }
+
+    if (
+      currentOrder?.payment_status === "paid" &&
+      currentOrder.razorpay_payment_id !== razorpayPaymentId
+    ) {
+      return errorResponse(
+        "A different payment is already associated with this order. Please contact support.",
+        409
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          "Payment was captured, but the order status needs support review. Do not pay again.",
+        orderNumber: order.order_number,
+      },
+      { status: 500 }
+    );
   } catch (error) {
     console.error(
       "Payment verification error:",
       error instanceof Error ? error.message : "Unknown error"
     );
 
-    return NextResponse.json(
-      {
-        error:
-          "Unable to verify payment right now. Do not pay again until the payment status has been checked.",
-      },
-      { status: 500 }
+    return errorResponse(
+      "Unable to verify payment right now. Do not pay again until the payment status has been checked.",
+      500
     );
   }
 }
