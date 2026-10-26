@@ -1,22 +1,17 @@
 
-/* Palmyra Admin — premium charcoal and gold dashboard */
+/* Palmyra Admin — clean charcoal and gold */
 
 .admin-page {
-  --palmyra-gold: #d6b36a;
-  --palmyra-gold-light: #f0d69b;
-  --palmyra-bg: #0b0b0d;
-  --palmyra-panel: #141416;
-  --palmyra-panel-raised: #19191c;
-  --palmyra-border: #2b2a2b;
-  --palmyra-text: #f4f1e9;
-  --palmyra-muted: #9a9893;
+  --gold: #d6b36a;
+  --text: #f4f1e9;
+  --muted: #96938c;
+  --panel: #141416;
+  --border: #2b2a2d;
 
   min-height: 100%;
   padding: clamp(18px, 3vw, 36px);
-  color: var(--palmyra-text);
-  background:
-    radial-gradient(ellipse at top right, rgb(214 179 106 / 6%), transparent 34%),
-    var(--palmyra-bg);
+  color: var(--text);
+  background: #0b0b0d;
   font-family: Inter, Arial, Helvetica, sans-serif;
 }
 
@@ -24,67 +19,86 @@
   box-sizing: border-box;
 }
 
-.admin-page .container {
-  width: 100%;
-  max-width: 1500px;
-  margin-inline: auto;
-}
-
+/* Headings */
 .admin-page h1 {
   margin: 0 0 8px;
-  color: var(--palmyra-text);
+  color: var(--text);
   font-size: clamp(26px, 3vw, 34px);
   font-weight: 750;
-  letter-spacing: -0.8px;
-  line-height: 1.2;
+  letter-spacing: -0.7px;
 }
 
 .admin-page h2,
 .admin-page h3 {
-  color: var(--palmyra-text);
-  letter-spacing: -0.25px;
+  color: var(--text);
 }
 
-.admin-page p {
-  color: var(--palmyra-muted);
-  line-height: 1.6;
-}
-
-/* Panels and metric cards */
+/* Only style explicit cards — never every element containing "metric" */
 .admin-page .card,
 .admin-page .metric-card,
 .admin-page .stat-card,
-.admin-page .summary-card,
-.admin-page [class*="metric"],
-.admin-page [class*="stat-card"] {
-  border: 1px solid var(--palmyra-border);
-  border-radius: 16px;
-  background: linear-gradient(145deg, #19191b, #121214);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 14%);
-  transition: border-color 160ms ease, transform 160ms ease;
+.admin-page .summary-card {
+  padding: 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: none;
 }
 
-.admin-page .metric-card:hover,
-.admin-page .stat-card:hover,
-.admin-page .summary-card:hover {
-  border-color: rgb(214 179 106 / 42%);
-  transform: translateY(-2px);
+/* Metric content: text stays inside its single card */
+.admin-page .metric-card *,
+.admin-page .stat-card *,
+.admin-page .summary-card * {
+  background-color: transparent;
+  box-shadow: none;
 }
 
-/* Inputs, search, filters and selects */
+.admin-page .metric-card h2,
+.admin-page .metric-card h3,
+.admin-page .stat-card h2,
+.admin-page .stat-card h3,
+.admin-page .summary-card h2,
+.admin-page .summary-card h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+.admin-page .metric-card strong,
+.admin-page .stat-card strong,
+.admin-page .summary-card strong {
+  display: block;
+  margin: 4px 0;
+  color: var(--text);
+  font-size: 28px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.admin-page .metric-card p,
+.admin-page .stat-card p,
+.admin-page .summary-card p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Form controls */
 .admin-page input,
 .admin-page select,
 .admin-page textarea {
-  width: 100%;
-  min-height: 44px;
-  padding: 11px 13px;
-  color: var(--palmyra-text);
+  max-width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  color: var(--text);
   background: #101012;
   border: 1px solid #343337;
-  border-radius: 10px;
+  border-radius: 9px;
   outline: none;
   font: inherit;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .admin-page input::placeholder,
@@ -95,42 +109,28 @@
 .admin-page input:focus,
 .admin-page select:focus,
 .admin-page textarea:focus {
-  border-color: var(--palmyra-gold);
-  box-shadow: 0 0 0 3px rgb(214 179 106 / 12%);
-}
-
-.admin-page select option {
-  color: var(--palmyra-text);
-  background: #141416;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgb(214 179 106 / 12%);
 }
 
 /* Buttons */
 .admin-page button {
-  min-height: 40px;
-  padding: 9px 14px;
-  color: #e9e5dc;
+  min-height: 38px;
+  padding: 9px 13px;
+  color: var(--text);
   background: #202023;
   border: 1px solid #38373a;
-  border-radius: 10px;
+  border-radius: 9px;
   font: inherit;
   font-size: 13px;
   font-weight: 650;
   cursor: pointer;
-  transition:
-    background 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease,
-    transform 150ms ease;
+  transition: border-color 150ms ease, background 150ms ease;
 }
 
 .admin-page button:hover:not(:disabled) {
-  border-color: var(--palmyra-gold);
+  border-color: var(--gold);
   background: #29261f;
-  color: var(--palmyra-gold-light);
-}
-
-.admin-page button:active:not(:disabled) {
-  transform: translateY(1px);
 }
 
 .admin-page button:disabled {
@@ -138,139 +138,69 @@
   opacity: 0.55;
 }
 
-/* Gold emphasis for primary actions */
-.admin-page button[type="submit"],
-.admin-page .primary-button,
-.admin-page button.primary {
+.admin-page button[type="submit"] {
   color: #17130b;
-  background: linear-gradient(135deg, #f0d69b, #c6a052);
-  border-color: #d6b36a;
+  background: var(--gold);
+  border-color: var(--gold);
   font-weight: 750;
-}
-
-.admin-page button[type="submit"]:hover:not(:disabled),
-.admin-page .primary-button:hover:not(:disabled),
-.admin-page button.primary:hover:not(:disabled) {
-  color: #100e09;
-  background: #f4dda9;
 }
 
 /* Orders table */
 .admin-page table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  color: var(--palmyra-text);
+  border-collapse: collapse;
+  color: var(--text);
   font-size: 13px;
 }
 
 .admin-page table thead th {
-  padding: 14px 16px;
+  padding: 14px;
   color: #bdb8ad;
   background: #19191b;
   border-bottom: 1px solid #343236;
   font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.8px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
   text-align: left;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
-.admin-page table thead th:first-child {
-  border-top-left-radius: 10px;
-}
-
-.admin-page table thead th:last-child {
-  border-top-right-radius: 10px;
-}
-
 .admin-page table tbody td {
-  padding: 15px 16px;
+  padding: 14px;
   border-bottom: 1px solid #262528;
   vertical-align: middle;
 }
 
-.admin-page table tbody tr {
-  background: #121214;
-  transition: background 140ms ease;
-}
-
 .admin-page table tbody tr:hover {
-  background: #1b1a17;
-}
-
-.admin-page table tbody tr:last-child td {
-  border-bottom-color: #343236;
+  background: #19191b;
 }
 
 .admin-page table td button {
-  min-height: 34px;
-  padding: 7px 10px;
+  min-height: 32px;
+  padding: 6px 10px;
   font-size: 12px;
 }
 
-/* Keep long order tables usable on narrower screens */
-.admin-page .table-wrap,
-.admin-page .table-container,
-.admin-page [class*="table-wrapper"] {
-  max-width: 100%;
-  overflow-x: auto;
-  border: 1px solid var(--palmyra-border);
-  border-radius: 14px;
-  background: var(--palmyra-panel);
-}
-
-.admin-page .table-wrap table,
-.admin-page .table-container table,
-.admin-page [class*="table-wrapper"] table {
-  min-width: 760px;
-}
-
-/* Status chips, labels and badges */
+/* Status badges only */
 .admin-page .status,
 .admin-page .badge,
 .admin-page [class*="status-badge"] {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  max-width: 100%;
-  padding: 5px 10px;
+  padding: 5px 9px;
   border: 1px solid #3a393b;
   border-radius: 999px;
-  background: #222225;
   color: #dedbd3;
+  background: #222225;
   font-size: 11px;
-  font-weight: 750;
-  line-height: 1.4;
+  font-weight: 700;
   white-space: nowrap;
-}
-
-/* Detail panels and drawers */
-.admin-page .drawer,
-.admin-page .order-drawer,
-.admin-page [class*="drawer-content"],
-.admin-page [class*="detail-panel"] {
-  color: var(--palmyra-text);
-  background: #141416;
-  border-color: var(--palmyra-border);
-}
-
-.admin-page label {
-  color: #c9c4b9;
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.admin-page hr {
-  border: 0;
-  border-top: 1px solid var(--palmyra-border);
 }
 
 /* Links */
 .admin-page a {
-  color: var(--palmyra-gold-light);
+  color: #e4c783;
   text-decoration: none;
 }
 
@@ -278,14 +208,11 @@
   color: #fff0c8;
 }
 
-/* Keyboard accessibility */
-.admin-page button:focus-visible,
-.admin-page a:focus-visible {
-  outline: 2px solid var(--palmyra-gold);
-  outline-offset: 3px;
+.admin-page hr {
+  border: 0;
+  border-top: 1px solid var(--border);
 }
 
-/* Mobile spacing */
 @media (max-width: 700px) {
   .admin-page {
     padding: 16px;
@@ -293,20 +220,6 @@
 
   .admin-page table thead th,
   .admin-page table tbody td {
-    padding: 12px;
-  }
-
-  .admin-page h1 {
-    letter-spacing: -0.5px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .admin-page *,
-  .admin-page *::before,
-  .admin-page *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
+    padding: 11px;
   }
 }
