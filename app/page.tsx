@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { videos } from "@/lib/videos";
 import { createClient } from "@/lib/supabase/client";
 
@@ -77,11 +77,39 @@ function formatPrice(price: number): string {
   return `₹${price.toLocaleString("en-IN")}`;
 }
 
+function PlayIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  );
+}
+
+function ArrowIcon({ direction = "right" }: { direction?: "left" | "right" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-4 w-4 ${direction === "left" ? "rotate-180" : ""}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      aria-hidden="true"
+    >
+      <path d="M5 12h14M13 5l7 7-7 7" />
+    </svg>
+  );
+}
+
 function VideoCard({ video }: { video: VideoItem }) {
   return (
     <Link
       href={`/watch/${video.id}`}
-      className="group block min-w-0"
+      className="group block w-[78vw] max-w-[320px] shrink-0 snap-start sm:w-[300px] lg:w-[340px]"
       aria-label={`Watch ${video.title || video.name || "video"}`}
     >
       <div className="relative aspect-video overflow-hidden rounded-xl border border-white/10 bg-zinc-900">
@@ -93,16 +121,10 @@ function VideoCard({ video }: { video: VideoItem }) {
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105 group-hover:opacity-80"
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
 
-        <div className="absolute bottom-3 left-3 flex h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-black/50 text-white backdrop-blur transition group-hover:border-red-500 group-hover:bg-red-600">
-          <svg
-            viewBox="0 0 24 24"
-            className="ml-0.5 h-4 w-4 fill-current"
-            aria-hidden="true"
-          >
-            <path d="M8 5v14l11-7z" />
-          </svg>
+        <div className="absolute bottom-3 left-3 flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-black/60 text-white backdrop-blur transition group-hover:border-red-500 group-hover:bg-red-600">
+          <PlayIcon className="ml-0.5 h-4 w-4" />
         </div>
 
         <span className="absolute right-3 top-3 rounded-full border border-white/20 bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white backdrop-blur">
@@ -123,29 +145,143 @@ function VideoCard({ video }: { video: VideoItem }) {
   );
 }
 
+function VideoCollection({
+  name,
+  subtitle,
+  category,
+}: {
+  name: string;
+  subtitle: string;
+  category: string;
+}) {
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  const collectionVideos = videoLibrary.filter(
+    (video) => video.category?.toLowerCase() === category.toLowerCase()
+  );
+
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  useEffect(() => {
+    const row = rowRef.current;
+
+    if (!row) return;
+
+    function updateScrollButtons() {
+      if (!row) return;
+
+      setCanScrollLeft(row.scrollLeft > 5);
+      setCanScrollRight(
+        row.scrollLeft + row.clientWidth < row.scrollWidth - 5
+      );
+    }
+
+    updateScrollButtons();
+
+    row.addEventListener("scroll", updateScrollButtons, { passive: true });
+
+    const resizeObserver = new ResizeObserver(updateScrollButtons);
+    resizeObserver.observe(row);
+
+    return () => {
+      row.removeEventListener("scroll", updateScrollButtons);
+      resizeObserver.disconnect();
+    };
+  }, [collectionVideos.length]);
+
+  if (collectionVideos.length === 0) {
+    return null;
+  }
+
+  function scrollRow(direction: "left" | "right") {
+    const row = rowRef.current;
+
+    if (!row) return;
+
+    row.scrollBy({
+      left: direction === "right" ? row.clientWidth * 0.8 : -row.clientWidth * 0.8,
+      behavior: "smooth",
+    });
+  }
+
+  return (
+    <section className="border-t border-white/10 bg-[#0b0b0b] py-12 sm:py-16 lg:py-20">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-7 flex items-end justify-between gap-4 px-5 sm:px-8 lg:px-12">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-red-500 sm:text-xs">
+              Discover Palmyra
+            </p>
+
+            <h2 className="mt-2 text-2xl font-black uppercase tracking-tight sm:text-3xl lg:text-4xl">
+              {name}
+            </h2>
+
+            <p className="mt-2 max-w-lg text-xs leading-5 text-zinc-400 sm:text-sm">
+              {subtitle}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="hidden items-center gap-2 sm:flex">
+              <button
+                type="button"
+                onClick={() => scrollRow("left")}
+                disabled={!canScrollLeft}
+                aria-label={`Scroll ${name} left`}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white transition hover:border-red-500 hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <ArrowIcon direction="left" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => scrollRow("right")}
+                disabled={!canScrollRight}
+                aria-label={`Scroll ${name} right`}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white transition hover:border-red-500 hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <ArrowIcon />
+              </button>
+            </div>
+
+            <Link
+              href="/watch"
+              className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-white transition hover:text-red-400 sm:text-xs"
+            >
+              View all <span aria-hidden="true">↗</span>
+            </Link>
+          </div>
+        </div>
+
+        <div
+          ref={rowRef}
+          className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain px-5 pb-4 sm:gap-5 sm:px-8 lg:gap-6 lg:px-12 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          aria-label={`${name} videos`}
+        >
+          {collectionVideos.map((video) => (
+            <VideoCard key={video.id} video={video} />
+          ))}
+        </div>
+
+        <p className="mt-1 px-5 text-[10px] text-zinc-600 sm:hidden">
+          Swipe to explore more videos →
+        </p>
+      </div>
+    </section>
+  );
+}
+
 export default function HomePage() {
   const [products, setProducts] = useState<HomepageProduct[]>([]);
   const [featuredIndex, setFeaturedIndex] = useState(0);
 
-  // Use the first three Palmyra videos for the local banner.
   const featuredVideos = videoLibrary
     .filter((video) => video.category?.toLowerCase() === "palmyra")
     .slice(0, 3);
 
   const featuredVideo = featuredVideos[featuredIndex];
-
-  const categories = [
-    {
-      name: "Palmyra Originals",
-      subtitle: "Stories, culture and the Palmyra identity.",
-      category: "Palmyra",
-    },
-    {
-      name: "Football",
-      subtitle: "The game, the energy and the moments that matter.",
-      category: "Football",
-    },
-  ];
 
   useEffect(() => {
     const supabase = createClient();
@@ -171,6 +307,8 @@ export default function HomePage() {
   }, []);
 
   function playNextFeaturedVideo() {
+    if (featuredVideos.length <= 1) return;
+
     setFeaturedIndex((current) =>
       current >= featuredVideos.length - 1 ? 0 : current + 1
     );
@@ -230,13 +368,7 @@ export default function HomePage() {
                   href={`/watch/${featuredVideo.id}`}
                   className="inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-red-600 px-7 py-3 text-sm font-bold uppercase tracking-wider transition hover:bg-red-500"
                 >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5 fill-current"
-                    aria-hidden="true"
-                  >
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
+                  <PlayIcon />
                   Watch featured
                 </Link>
               ) : (
@@ -438,56 +570,18 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* VIDEO COLLECTIONS */}
-      {categories.map((collection) => {
-        const collectionVideos = videoLibrary.filter(
-          (video) =>
-            video.category?.toLowerCase() ===
-            collection.category.toLowerCase()
-        );
+      {/* HORIZONTAL VIDEO COLLECTIONS */}
+      <VideoCollection
+        name="Palmyra Originals"
+        subtitle="Stories, culture and the Palmyra identity."
+        category="Palmyra"
+      />
 
-        if (collectionVideos.length === 0) {
-          return null;
-        }
-
-        return (
-          <section
-            key={collection.category}
-            className="border-t border-white/10 bg-[#0b0b0b] py-16 sm:py-20"
-          >
-            <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-              <div className="mb-8 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-red-500">
-                    Discover Palmyra
-                  </p>
-
-                  <h2 className="mt-3 text-2xl font-black uppercase tracking-tight sm:text-4xl">
-                    {collection.name}
-                  </h2>
-
-                  <p className="mt-2 text-sm text-zinc-400">
-                    {collection.subtitle}
-                  </p>
-                </div>
-
-                <Link
-                  href="/watch"
-                  className="shrink-0 text-xs font-bold uppercase tracking-wider text-white transition hover:text-red-400 sm:text-sm"
-                >
-                  View all <span aria-hidden="true">↗</span>
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {collectionVideos.slice(0, 3).map((video) => (
-                  <VideoCard key={video.id} video={video} />
-                ))}
-              </div>
-            </div>
-          </section>
-        );
-      })}
+      <VideoCollection
+        name="Football"
+        subtitle="The game, the energy and the moments that matter."
+        category="Football"
+      />
 
       {/* COMMUNITY CAMPAIGN */}
       <section className="relative isolate overflow-hidden border-t border-white/10">
