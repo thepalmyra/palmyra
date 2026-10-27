@@ -75,6 +75,16 @@ export const videos: VideoItem[] = [
     featured: true,
   },
 
+  // LIVE STREAM
+
+  {
+    id: "Ay1gYmJoFMk",
+    type: "youtube",
+    title: "LIVE: FC Goa vs Sporting Club Delhi | MG ISL 2026-27",
+    description: "MG Indian Super League",
+    category: "Live Now",
+  },
+
   // FOOTBALL VIDEOS
   {
     id: "7oGGGR7fsF0",
@@ -99,16 +109,6 @@ export const videos: VideoItem[] = [
     description: "AllAttack",
     category: "LevelUp",
   },
-
-  // LIVE STREAM
-
-  {
-    id: "Ay1gYmJoFMk",
-    type: "youtube",
-    title: "LIVE: FC Goa vs Sporting Club Delhi | MG ISL 2026-27",
-    description: "MG Indian Super League",
-    category: "Live Now",
-  }
   
   // ADD FUTURE VIDEOS BELOW
   //
