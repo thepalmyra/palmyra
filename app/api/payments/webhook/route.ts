@@ -1,265 +1,211 @@
 
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-type RazorpayPayment = {
-  id?: string;
-  order_id?: string;
-  amount?: number;
-  currency?: string;
-  status?: string;
-  captured?: boolean;
-};
-
-type WebhookBody = {
-  event?: string;
-  payload?: {
-    payment?: {
-      entity?: RazorpayPayment;
-    };
-  };
-};
+function errorResponse(message: string, status: number) {
+  return NextResponse.json({ error: message }, { status });
+}
 
 export async function POST(request: Request) {
   try {
-    const webhookSecret =
-      process.env.RAZORPAY_WEBHOOK_SECRET?.trim();
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-    const supabaseSecretKey =
-      process.env.SUPABASE_SECRET_KEY?.trim();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY?.trim();
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim();
 
-    if (!webhookSecret || !supabaseUrl || !supabaseSecretKey) {
-      console.error("Payment webhook configuration is incomplete.");
-
-      return NextResponse.json(
-        { error: "Webhook configuration is incomplete." },
-        { status: 500 }
-      );
+    if (!supabaseUrl || !supabaseSecretKey || !webhookSecret) {
+      console.error("Webhook environment configuration is incomplete.");
+      return errorResponse("Webhook is not configured correctly.", 500);
     }
 
-    // Razorpay signatures must be checked against the original raw body.
+    // Verify the signature against the exact raw request body.
     const rawBody = await request.text();
-    const signature = request.headers.get("x-razorpay-signature");
+    const receivedSignature = request.headers.get("x-razorpay-signature");
 
-    if (!signature || !/^[a-f0-9]{64}$/i.test(signature)) {
-      return NextResponse.json(
-        { error: "Invalid webhook signature." },
-        { status: 400 }
-      );
+    if (
+      !receivedSignature ||
+      !/^[a-f0-9]{64}$/i.test(receivedSignature)
+    ) {
+      return errorResponse("Invalid webhook signature.", 400);
     }
 
     const expectedSignature = createHmac("sha256", webhookSecret)
       .update(rawBody)
       .digest();
 
-    const receivedSignature = Buffer.from(signature, "hex");
+    const signatureBuffer = Buffer.from(receivedSignature, "hex");
 
     if (
-      expectedSignature.length !== receivedSignature.length ||
-      !timingSafeEqual(expectedSignature, receivedSignature)
+      expectedSignature.length !== signatureBuffer.length ||
+      !timingSafeEqual(expectedSignature, signatureBuffer)
     ) {
-      return NextResponse.json(
-        { error: "Webhook signature verification failed." },
-        { status: 400 }
-      );
+      return errorResponse("Webhook signature verification failed.", 400);
     }
 
-    let body: WebhookBody;
+    let event: Record<string, unknown>;
 
     try {
-      body = JSON.parse(rawBody) as WebhookBody;
-    } catch {
-      return NextResponse.json(
-        { error: "Invalid webhook payload." },
-        { status: 400 }
-      );
-    }
+      const parsed: unknown = JSON.parse(rawBody);
 
-    // Configure Razorpay to send payment.captured events.
-    // Acknowledge unrelated events without changing any orders.
-    if (body.event !== "payment.captured") {
-      return NextResponse.json({ received: true });
-    }
-
-    const payment = body.payload?.payment?.entity;
-
-    if (
-      !payment?.id ||
-      !payment.order_id ||
-      payment.status !== "captured" ||
-      payment.captured !== true ||
-      !Number.isSafeInteger(payment.amount) ||
-      payment.amount! <= 0 ||
-      payment.currency !== "INR"
-    ) {
-      return NextResponse.json(
-        { error: "Captured payment details are invalid." },
-        { status: 400 }
-      );
-    }
-
-    const supabase = createClient(
-      supabaseUrl,
-      supabaseSecretKey,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return errorResponse("Invalid webhook payload.", 400);
       }
-    );
 
-    // Match the payment to the existing Palmyra order.
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .select(
-        "id, order_number, total_amount, payment_status, razorpay_order_id, razorpay_payment_id"
-      )
-      .eq("razorpay_order_id", payment.order_id)
-      .maybeSingle();
-
-    if (orderError) {
-      console.error("Webhook order lookup failed:", orderError.message);
-
-      return NextResponse.json(
-        { error: "Could not look up the order." },
-        { status: 500 }
-      );
+      event = parsed as Record<string, unknown>;
+    } catch {
+      return errorResponse("Invalid webhook payload.", 400);
     }
 
-    if (!order) {
-      // Acknowledge an unrelated order so it does not cause
-      // endless retries. Investigate unmatched orders separately.
-      console.error(
-        "Captured Razorpay payment has no matching Palmyra order:",
-        payment.order_id
-      );
-
+    // Other valid Razorpay events do not create Palmyra orders.
+    if (event.event !== "payment.captured") {
       return NextResponse.json({
         received: true,
-        matched: false,
+        ignored: true,
       });
     }
 
-    const expectedAmount = Math.round(Number(order.total_amount) * 100);
+    const payload = event.payload as
+      | Record<string, unknown>
+      | undefined;
+    const paymentEntity = payload?.payment as
+      | Record<string, unknown>
+      | undefined;
+    const payment = paymentEntity?.entity as
+      | Record<string, unknown>
+      | undefined;
+
+    if (!payment || typeof payment !== "object") {
+      return errorResponse("Invalid captured-payment payload.", 400);
+    }
+
+    const paymentId = payment.id;
+    const razorpayOrderId = payment.order_id;
+    const amount = payment.amount;
+    const currency = payment.currency;
+    const status = payment.status;
+    const captured = payment.captured;
+
+    if (
+      typeof paymentId !== "string" ||
+      !paymentId.trim() ||
+      typeof razorpayOrderId !== "string" ||
+      !razorpayOrderId.trim() ||
+      !Number.isSafeInteger(amount) ||
+      (amount as number) <= 0 ||
+      currency !== "INR" ||
+      status !== "captured" ||
+      captured !== true
+    ) {
+      return errorResponse("Invalid captured-payment details.", 400);
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseSecretKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+
+    // Find the checkout session, not a pre-created Palmyra order.
+    const { data: checkout, error: checkoutError } = await supabase
+      .from("checkout_sessions")
+      .select("id, total_amount, razorpay_order_id, razorpay_payment_id")
+      .eq("razorpay_order_id", razorpayOrderId)
+      .maybeSingle();
+
+    if (checkoutError) {
+      console.error("Could not read checkout session:", checkoutError);
+      return errorResponse("Could not read checkout session.", 500);
+    }
+
+    if (!checkout) {
+      // Return a non-2xx response so Razorpay can retry delivery.
+      console.error("Captured payment has no matching checkout session.", {
+        razorpayOrderId,
+        paymentId,
+      });
+
+      return errorResponse(
+        "Matching checkout session not found; reconciliation is required.",
+        500
+      );
+    }
+
+    const expectedAmount = Number(checkout.total_amount) * 100;
 
     if (
       !Number.isSafeInteger(expectedAmount) ||
-      expectedAmount !== payment.amount
+      expectedAmount <= 0 ||
+      amount !== expectedAmount
     ) {
-      console.error(
-        "Captured payment amount does not match Palmyra order:",
-        order.order_number
-      );
+      console.error("Captured payment amount mismatch.", {
+        razorpayOrderId,
+        paymentId,
+      });
 
-      return NextResponse.json(
-        { error: "Payment amount does not match the order." },
-        { status: 409 }
+      return errorResponse("Captured payment amount mismatch.", 400);
+    }
+
+    if (
+      checkout.razorpay_payment_id &&
+      checkout.razorpay_payment_id !== paymentId
+    ) {
+      console.error("Checkout already references a different payment.", {
+        razorpayOrderId,
+        paymentId,
+      });
+
+      return errorResponse(
+        "Checkout payment mismatch; reconciliation is required.",
+        409
       );
     }
 
-    // Webhook delivery can be repeated, so make processing idempotent.
-    if (order.payment_status === "paid") {
-      if (order.razorpay_payment_id === payment.id) {
-        return NextResponse.json({
-          received: true,
-          orderNumber: order.order_number,
-          paymentStatus: "paid",
-        });
+    // The RPC is transactional and safe if verification processed this
+    // same payment first. It returns the existing order on a valid retry.
+    const { data: result, error: rpcError } = await supabase.rpc(
+      "create_paid_palmyra_order",
+      {
+        p_razorpay_order_id: razorpayOrderId,
+        p_razorpay_payment_id: paymentId,
       }
+    );
 
-      // Never silently replace a different saved payment ID.
-      console.error(
-        "Order is already paid with a different payment ID:",
-        order.order_number
-      );
-
-      return NextResponse.json(
-        { error: "Order requires payment reconciliation." },
-        { status: 409 }
+    if (rpcError) {
+      console.error("Could not create/reconcile paid order:", rpcError);
+      return errorResponse(
+        "Captured payment could not yet be reconciled to an order.",
+        500
       );
     }
 
     if (
-      order.razorpay_payment_id &&
-      order.razorpay_payment_id !== payment.id
+      !result ||
+      typeof result !== "object" ||
+      result.success !== true ||
+      result.paymentStatus !== "paid"
     ) {
-      return NextResponse.json(
-        { error: "Order has a different payment ID saved." },
-        { status: 409 }
-      );
-    }
-
-    const { data: updatedOrder, error: updateError } =
-      await supabase
-        .from("orders")
-        .update({
-          payment_status: "paid",
-          razorpay_payment_id: payment.id,
-        })
-        .eq("id", order.id)
-        .eq("razorpay_order_id", payment.order_id)
-        .eq("payment_status", "pending")
-        .select("order_number, payment_status, razorpay_payment_id")
-        .maybeSingle();
-
-    if (updateError) {
-      console.error(
-        "Webhook order update failed:",
-        updateError.message
-      );
-
-      return NextResponse.json(
-        { error: "Could not update the order payment status." },
-        { status: 500 }
-      );
-    }
-
-    if (!updatedOrder) {
-      // Another request may have updated the order concurrently.
-      const { data: currentOrder, error: currentError } =
-        await supabase
-          .from("orders")
-          .select("order_number, payment_status, razorpay_payment_id")
-          .eq("id", order.id)
-          .maybeSingle();
-
-      if (
-        !currentError &&
-        currentOrder?.payment_status === "paid" &&
-        currentOrder.razorpay_payment_id === payment.id
-      ) {
-        return NextResponse.json({
-          received: true,
-          orderNumber: currentOrder.order_number,
-          paymentStatus: "paid",
-        });
-      }
-
-      return NextResponse.json(
-        { error: "Order status changed and needs review." },
-        { status: 409 }
+      console.error("Unexpected paid-order function response:", result);
+      return errorResponse(
+        "Captured payment could not yet be reconciled to an order.",
+        500
       );
     }
 
     return NextResponse.json({
       received: true,
-      orderNumber: updatedOrder.order_number,
-      paymentStatus: updatedOrder.payment_status,
+      matched: true,
+      processed: true,
     });
   } catch (error) {
     console.error(
-      "Razorpay webhook error:",
+      "Payment webhook error:",
       error instanceof Error ? error.message : "Unknown error"
     );
 
-    return NextResponse.json(
-      { error: "Unable to process the payment webhook." },
-      { status: 500 }
-    );
+    return errorResponse("Webhook processing failed.", 500);
   }
 }
