@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -16,6 +17,7 @@ type HomepageProduct = {
 
 type VideoItem = {
   id: string;
+  type: "youtube" | "local";
   title?: string;
   name?: string;
   category?: string;
@@ -28,15 +30,19 @@ type VideoItem = {
 };
 
 const videoLibrary = videos as VideoItem[];
+const FALLBACK_THUMBNAIL = "/images/video-placeholder.jpg";
 
 function getYoutubeId(video: VideoItem): string | undefined {
+  if (video.type === "youtube") {
+    return video.youtubeId || video.id;
+  }
+
+  const youtubeUrl = video.youtubeUrl || video.videoUrl || video.url;
+
   return (
     video.youtubeId ||
-    video.youtubeUrl?.match(
-      /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&/]+)/
-    )?.[1] ||
-    video.url?.match(
-      /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&/]+)/
+    youtubeUrl?.match(
+      /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/))([^?&#/]+)/
     )?.[1]
   );
 }
@@ -45,10 +51,10 @@ function thumbnail(video: VideoItem): string {
   const youtubeId = getYoutubeId(video);
 
   if (youtubeId) {
-    return `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+    return `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`;
   }
 
-  return video.thumbnail || "/images/video-placeholder.jpg";
+  return video.thumbnail || FALLBACK_THUMBNAIL;
 }
 
 function productImage(name: string): string {
@@ -90,7 +96,11 @@ function PlayIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
-function ArrowIcon({ direction = "right" }: { direction?: "left" | "right" }) {
+function ArrowIcon({
+  direction = "right",
+}: {
+  direction?: "left" | "right";
+}) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -106,34 +116,63 @@ function ArrowIcon({ direction = "right" }: { direction?: "left" | "right" }) {
 }
 
 function VideoCard({ video }: { video: VideoItem }) {
+  const title = video.title || video.name || "Palmyra Original";
+
   return (
     <Link
       href={`/watch/${video.id}`}
       className="group block w-[78vw] max-w-[320px] shrink-0 snap-start sm:w-[300px] lg:w-[340px]"
-      aria-label={`Watch ${video.title || video.name || "video"}`}
+      aria-label={`Watch ${title}`}
     >
       <div className="relative aspect-video overflow-hidden rounded-xl border border-white/10 bg-zinc-900">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={thumbnail(video)}
-          alt={video.title || video.name || "Palmyra video"}
+          alt={title}
           loading="lazy"
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105 group-hover:opacity-80"
+          onError={(event) => {
+            const image = event.currentTarget;
+
+            if (image.dataset.fallbackApplied === "true") {
+              return;
+            }
+
+            if (video.type === "youtube" || getYoutubeId(video)) {
+              const step = Number(image.dataset.fallbackStep || "0");
+
+              if (step === 0) {
+                image.dataset.fallbackStep = "1";
+                image.src = `https://img.youtube.com/vi/${getYoutubeId(video)}/hqdefault.jpg`;
+              } else if (step === 1) {
+                image.dataset.fallbackStep = "2";
+                image.src = `https://img.youtube.com/vi/${getYoutubeId(video)}/mqdefault.jpg`;
+              } else {
+                image.dataset.fallbackApplied = "true";
+                image.src = FALLBACK_THUMBNAIL;
+              }
+
+              return;
+            }
+
+            image.dataset.fallbackApplied = "true";
+            image.src = FALLBACK_THUMBNAIL;
+          }}
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
 
         <div className="absolute bottom-3 left-3 flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-black/60 text-white backdrop-blur transition group-hover:border-red-500 group-hover:bg-red-600">
           <PlayIcon className="ml-0.5 h-4 w-4" />
         </div>
 
         <span className="absolute right-3 top-3 rounded-full border border-white/20 bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white backdrop-blur">
-          Watch
+          {video.type === "youtube" ? "YouTube" : "Original"}
         </span>
       </div>
 
-      <h3 className="mt-3 line-clamp-2 text-sm font-semibold text-white transition group-hover:text-red-400 sm:text-base">
-        {video.title || video.name || "Palmyra Original"}
+      <h3 className="mt-3 line-clamp-2 text-sm font-semibold leading-5 text-white transition group-hover:text-red-400 sm:text-base">
+        {title}
       </h3>
 
       {video.description && (
@@ -155,30 +194,25 @@ function VideoCollection({
   category: string;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
-
-  const collectionVideos = videoLibrary.filter(
-    (video) => video.category?.toLowerCase() === category.toLowerCase()
-  );
-
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
+  const collectionVideos = videoLibrary.filter(
+    (video) => video.category?.trim().toLowerCase() === category.toLowerCase()
+  );
+
   useEffect(() => {
     const row = rowRef.current;
-
     if (!row) return;
 
-    function updateScrollButtons() {
-      if (!row) return;
-
+    const updateScrollButtons = () => {
       setCanScrollLeft(row.scrollLeft > 5);
       setCanScrollRight(
         row.scrollLeft + row.clientWidth < row.scrollWidth - 5
       );
-    }
+    };
 
     updateScrollButtons();
-
     row.addEventListener("scroll", updateScrollButtons, { passive: true });
 
     const resizeObserver = new ResizeObserver(updateScrollButtons);
@@ -190,24 +224,24 @@ function VideoCollection({
     };
   }, [collectionVideos.length]);
 
-  if (collectionVideos.length === 0) {
-    return null;
-  }
+  if (collectionVideos.length === 0) return null;
 
   function scrollRow(direction: "left" | "right") {
     const row = rowRef.current;
-
     if (!row) return;
 
     row.scrollBy({
-      left: direction === "right" ? row.clientWidth * 0.8 : -row.clientWidth * 0.8,
+      left:
+        direction === "right"
+          ? row.clientWidth * 0.8
+          : -row.clientWidth * 0.8,
       behavior: "smooth",
     });
   }
 
   return (
-    <section className="border-t border-white/10 bg-[#0b0b0b] py-12 sm:py-16 lg:py-20">
-      <div className="mx-auto max-w-7xl">
+    <section className="border-t border-white/10 bg-[#0b0b0b] py-12 sm:py-14 lg:py-16">
+      <div className="mx-auto w-full max-w-7xl">
         <div className="mb-7 flex items-end justify-between gap-4 px-5 sm:px-8 lg:px-12">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-red-500 sm:text-xs">
@@ -218,7 +252,7 @@ function VideoCollection({
               {name}
             </h2>
 
-            <p className="mt-2 max-w-lg text-xs leading-5 text-zinc-400 sm:text-sm">
+            <p className="mt-2 max-w-lg text-xs leading-5 text-zinc-400 sm:text-sm sm:leading-6">
               {subtitle}
             </p>
           </div>
@@ -278,10 +312,17 @@ export default function HomePage() {
   const [featuredIndex, setFeaturedIndex] = useState(0);
 
   const featuredVideos = videoLibrary
-    .filter((video) => video.category?.toLowerCase() === "palmyra")
+    .filter(
+      (video) =>
+        video.type === "local" &&
+        video.category?.trim().toLowerCase() === "palmyra"
+    )
     .slice(0, 3);
 
-  const featuredVideo = featuredVideos[featuredIndex];
+  const featuredVideo =
+    featuredVideos.length > 0
+      ? featuredVideos[featuredIndex % featuredVideos.length]
+      : undefined;
 
   useEffect(() => {
     const supabase = createClient();
@@ -316,8 +357,8 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#080808] text-white">
-      {/* CINEMATIC HERO — LOCAL VIDEO ONLY, MUTED, NO POSTER */}
-      <section className="relative isolate min-h-[620px] overflow-hidden bg-black sm:min-h-[700px] lg:min-h-[760px]">
+      {/* HERO */}
+      <section className="relative isolate min-h-[600px] overflow-hidden bg-black sm:min-h-[680px] lg:min-h-[740px]">
         {featuredVideo && (
           <video
             key={featuredVideo.id}
@@ -336,20 +377,19 @@ export default function HomePage() {
           </video>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/15" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-transparent to-black/25" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/15" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#080808] via-transparent to-black/25" />
 
-        <div className="relative mx-auto flex min-h-[620px] max-w-7xl items-center px-5 pb-20 pt-24 sm:min-h-[700px] sm:px-8 lg:min-h-[760px] lg:px-12">
+        <div className="relative mx-auto flex min-h-[600px] w-full max-w-7xl items-center px-5 pb-20 pt-24 sm:min-h-[680px] sm:px-8 lg:min-h-[740px] lg:px-12">
           <div className="max-w-3xl">
             <div className="mb-6 flex items-center gap-3">
               <span className="h-px w-10 bg-red-500" />
-
-              <span className="text-xs font-bold uppercase tracking-[0.3em] text-red-400">
+              <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-red-400 sm:text-xs sm:tracking-[0.3em]">
                 Culture. Sport. Identity.
               </span>
             </div>
 
-            <h1 className="max-w-3xl text-5xl font-black uppercase leading-[0.94] tracking-[-0.055em] sm:text-7xl lg:text-8xl">
+            <h1 className="max-w-3xl text-5xl font-black uppercase leading-[0.96] tracking-[-0.055em] sm:text-7xl lg:text-8xl">
               More than
               <br />
               a brand.
@@ -357,12 +397,12 @@ export default function HomePage() {
               <span className="text-red-500">A way of life.</span>
             </h1>
 
-            <p className="mt-7 max-w-xl text-sm leading-7 text-zinc-300 sm:text-base sm:leading-8">
+            <p className="mt-6 max-w-xl text-sm leading-7 text-zinc-300 sm:mt-7 sm:text-base sm:leading-8">
               Discover the Palmyra world — original videos, football culture
               and sportswear made for the way you live.
             </p>
 
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row">
               {featuredVideo ? (
                 <Link
                   href={`/watch/${featuredVideo.id}`}
@@ -382,13 +422,13 @@ export default function HomePage() {
 
               <Link
                 href="/store"
-                className="inline-flex min-h-12 items-center justify-center rounded-md border border-white/30 bg-white/5 px-7 py-3 text-sm font-bold uppercase tracking-wider backdrop-blur transition hover:border-white hover:bg-white hover:text-black"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-white/30 bg-white/5 px-7 py-3 text-sm font-bold uppercase tracking-wider backdrop-blur transition hover:border-white hover:bg-white hover:text-black"
               >
                 Shop Palmyra <span aria-hidden="true">↗</span>
               </Link>
             </div>
 
-            <div className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400 sm:text-xs">
+            <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400 sm:mt-12 sm:gap-x-6 sm:text-xs sm:tracking-[0.22em]">
               <span>Original content</span>
               <span className="h-1 w-1 rounded-full bg-red-500" />
               <span>Sportswear</span>
@@ -420,7 +460,7 @@ export default function HomePage() {
 
       {/* BRAND PILLARS */}
       <section className="border-y border-white/10 bg-[#0c0c0c]">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-y divide-white/10 sm:grid-cols-4 sm:divide-y-0">
+        <div className="mx-auto grid w-full max-w-7xl grid-cols-2 divide-x divide-y divide-white/10 sm:grid-cols-4 sm:divide-y-0">
           {[
             {
               number: "01",
@@ -448,7 +488,7 @@ export default function HomePage() {
                 {pillar.number}
               </span>
 
-              <h2 className="mt-4 text-base font-extrabold uppercase tracking-wide sm:text-lg">
+              <h2 className="mt-3 text-sm font-extrabold uppercase tracking-wide sm:mt-4 sm:text-lg">
                 {pillar.title}
               </h2>
 
@@ -461,10 +501,10 @@ export default function HomePage() {
       </section>
 
       {/* PRODUCT COLLECTION */}
-      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24 lg:px-12">
-        <div className="mb-9 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+      <section className="mx-auto w-full max-w-7xl px-5 py-14 sm:px-8 sm:py-20 lg:px-12 lg:py-24">
+        <div className="mb-8 flex flex-col justify-between gap-5 sm:mb-9 sm:flex-row sm:items-end">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-red-500">
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-red-500 sm:text-xs">
               The Palmyra collection
             </p>
 
@@ -487,7 +527,7 @@ export default function HomePage() {
         </div>
 
         {products.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:gap-x-6 sm:gap-y-9 lg:grid-cols-4">
             {products.map((product) => {
               const hasDiscount =
                 product.original_price !== null &&
@@ -513,28 +553,36 @@ export default function HomePage() {
                       src={product.image || productImage(product.name)}
                       alt={product.name}
                       loading="lazy"
+                      onError={(event) => {
+                        const image = event.currentTarget;
+
+                        if (image.dataset.fallbackApplied !== "true") {
+                          image.dataset.fallbackApplied = "true";
+                          image.src = productImage(product.name);
+                        }
+                      }}
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                     />
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-70" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-70" />
 
                     {hasDiscount && (
-                      <span className="absolute left-3 top-3 rounded bg-red-600 px-2 py-1 text-[10px] font-bold uppercase tracking-wider">
+                      <span className="absolute left-2 top-2 rounded bg-red-600 px-2 py-1 text-[9px] font-bold uppercase tracking-wider sm:left-3 sm:top-3 sm:text-[10px]">
                         {discount}% off
                       </span>
                     )}
 
-                    <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-lg text-black transition group-hover:bg-red-600 group-hover:text-white">
+                    <span className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-lg text-black transition group-hover:bg-red-600 group-hover:text-white sm:h-9 sm:w-9">
                       +
                     </span>
                   </div>
 
-                  <div className="pt-4">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  <div className="pt-3 sm:pt-4">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-zinc-500 sm:text-[10px] sm:tracking-[0.18em]">
                       {product.category || "Palmyra"}
                     </p>
 
-                    <h3 className="mt-1.5 line-clamp-2 text-sm font-bold text-white transition group-hover:text-red-400 sm:text-base">
+                    <h3 className="mt-1.5 line-clamp-2 text-sm font-bold leading-5 text-white transition group-hover:text-red-400 sm:text-base">
                       {product.name}
                     </h3>
 
@@ -570,7 +618,7 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* HORIZONTAL VIDEO COLLECTIONS */}
+      {/* VIDEO COLLECTIONS */}
       <VideoCollection
         name="Palmyra Originals"
         subtitle="Stories, culture and the Palmyra identity."
@@ -594,11 +642,11 @@ export default function HomePage() {
           className="absolute inset-0 -z-20 h-full w-full object-cover"
         />
 
-        <div className="absolute inset-0 -z-10 bg-black/75" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black via-black/65 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-black/75" />
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-black via-black/65 to-transparent" />
 
-        <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:px-12">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-red-400">
+        <div className="mx-auto w-full max-w-7xl px-5 py-16 sm:px-8 sm:py-24 lg:px-12 lg:py-28">
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-red-400 sm:text-xs">
             This is Palmyra
           </p>
 
@@ -634,10 +682,10 @@ export default function HomePage() {
       </section>
 
       {/* FINAL CTA */}
-      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20 lg:px-12">
-        <div className="flex flex-col justify-between gap-7 rounded-2xl border border-white/10 bg-white/[0.035] p-7 sm:p-10 lg:flex-row lg:items-center lg:p-14">
+      <section className="mx-auto w-full max-w-7xl px-5 py-14 sm:px-8 sm:py-20 lg:px-12">
+        <div className="flex flex-col justify-between gap-7 rounded-2xl border border-white/10 bg-white/[0.035] p-6 sm:p-10 lg:flex-row lg:items-center lg:p-14">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-red-500">
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-red-500 sm:text-xs">
               Your next discovery starts here
             </p>
 

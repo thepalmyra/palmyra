@@ -522,12 +522,12 @@ export default function WatchPage() {
             </div>
 
             <Link
-              href="/store"
-              className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-black transition hover:bg-red-500 hover:text-white"
-            >
-              Explore the store
-              <span aria-hidden="true">↗</span>
-            </Link>
+  href="/store"
+  className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold !text-black transition hover:bg-red-500 hover:!text-white"
+>
+  Explore the store
+  <span aria-hidden="true">↗</span>
+</Link>
           </div>
         </div>
       </section>
