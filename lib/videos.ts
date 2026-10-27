@@ -23,12 +23,12 @@ export type VideoItem = {
  */
 export const homeCategories = [
   {
-    category: "Live TV",
+    category: "Live Now",
     subtitle: "Watch live events and streams as they happen.",
     liveOnly: true,
   },
   {
-    category: "Football",
+    category: "LevelUp",
     subtitle: "The game, the energy and the moments that matter.",
   },
   {
@@ -81,7 +81,7 @@ export const videos: VideoItem[] = [
     type: "youtube",
     title: "10 Stupidest Mistakes in Soccer",
     description: "AllAttack",
-    category: "Football",
+    category: "LevelUp",
   },
 
   {
@@ -89,7 +89,7 @@ export const videos: VideoItem[] = [
     type: "youtube",
     title: "20 BEST WAYS TO SHOOT A BALL",
     description: "AllAttack",
-    category: "Football",
+    category: "LevelUp",
   },
 
   {
@@ -97,9 +97,19 @@ export const videos: VideoItem[] = [
     type: "youtube",
     title: "15 BEST Skill Moves to Beat Defenders in REAL GAMES",
     description: "AllAttack",
-    category: "Football",
+    category: "LevelUp",
   },
 
+  // LIVE STREAM
+
+  {
+    id: "Ay1gYmJoFMk",
+    type: "youtube",
+    title: "LIVE: FC Goa vs Sporting Club Delhi | MG ISL 2026-27",
+    description: "MG Indian Super League",
+    category: "Live Now",
+  }
+  
   // ADD FUTURE VIDEOS BELOW
   //
   // YouTube video or live stream example:
