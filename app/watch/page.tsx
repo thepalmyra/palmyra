@@ -164,7 +164,16 @@ export default function WatchPage() {
       )
     );
 
-    return allCategories.sort((a, b) => a.localeCompare(b));
+    return allCategories.sort((a, b) => {
+     const aIsLive = a.toLowerCase() === "live tv" || a.toLowerCase() === "live";
+     const bIsLive = b.toLowerCase() === "live tv" || b.toLowerCase() === "live";
+
+     if (aIsLive && !bIsLive) return -1;
+     if (!aIsLive && bIsLive) return 1;
+
+     return a.localeCompare(b);
+    });
+    
   }, [libraryVideos]);
 
   const featuredVideos = useMemo(
