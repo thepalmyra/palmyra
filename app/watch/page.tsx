@@ -2,28 +2,32 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
-import { videos } from "@/lib/videos";
+import { videos, type VideoItem } from "@/lib/videos";
 
-type VideoItem = {
-  id: string;
-  type: "youtube" | "local";
-  title?: string;
-  name?: string;
-  category?: string;
-  thumbnail?: string;
-  youtubeId?: string;
-  youtubeUrl?: string;
-  url?: string;
-  description?: string;
-};
-
-const videoLibrary = videos as VideoItem[];
+const videoLibrary = videos;
 
 const FALLBACK_THUMBNAIL = "/images/video-placeholder.jpg";
 
-function getThumbnail(video: VideoItem): string {
+function getYoutubeId(video: VideoItem): string | undefined {
   if (video.type === "youtube") {
-    return `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`;
+    return video.youtubeId || video.id;
+  }
+
+  const youtubeUrl = video.youtubeUrl || video.videoUrl || video.url;
+
+  return (
+    video.youtubeId ||
+    youtubeUrl?.match(
+      /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/))([^?&#/]+)/
+    )?.[1]
+  );
+}
+
+function getThumbnail(video: VideoItem): string {
+  const youtubeId = getYoutubeId(video);
+
+  if (youtubeId) {
+    return `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
   }
 
   return video.thumbnail || FALLBACK_THUMBNAIL;
@@ -61,8 +65,7 @@ function SearchIcon() {
 }
 
 function VideoCard({ video }: { video: VideoItem }) {
-  const title = video.title || video.name || "Palmyra Original";
-  const isYouTube = video.type === "youtube";
+  const title = video.title || "Palmyra Original";
 
   return (
     <Link
@@ -80,8 +83,7 @@ function VideoCard({ video }: { video: VideoItem }) {
           onError={(event) => {
             const image = event.currentTarget;
 
-            if (isYouTube) {
-              // Do not substitute a local image for a YouTube thumbnail.
+            if (getYoutubeId(video)) {
               image.style.visibility = "hidden";
               return;
             }
@@ -96,14 +98,10 @@ function VideoCard({ video }: { video: VideoItem }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/10" />
 
         <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-white/15 bg-black/65 px-2.5 py-1.5 backdrop-blur-md">
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              isYouTube ? "bg-red-500" : "bg-amber-400"
-            }`}
-          />
+          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
 
           <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-white">
-            {isYouTube ? "YouTube" : "Palmyra Original"}
+            YouTube
           </span>
         </div>
 
@@ -146,31 +144,33 @@ export default function WatchPage() {
 
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  // Only regular YouTube videos belong to the Watch category library.
+  // Local intro videos are reserved for the autoplaying banner.
+  const libraryVideos = useMemo(
+    () =>
+      videoLibrary.filter(
+        (video) =>
+          video.type === "youtube" && Boolean(video.category?.trim())
+      ),
+    []
+  );
+
   const categories = useMemo(() => {
     const allCategories = Array.from(
       new Set(
-        videoLibrary
+        libraryVideos
           .map((video) => video.category?.trim())
           .filter((category): category is string => Boolean(category))
       )
     );
 
-    return allCategories.sort((a, b) => {
-      if (a.toLowerCase() === "palmyra") return -1;
-      if (b.toLowerCase() === "palmyra") return 1;
-      if (a.toLowerCase() === "football") return -1;
-      if (b.toLowerCase() === "football") return 1;
-
-      return a.localeCompare(b);
-    });
-  }, []);
+    return allCategories.sort((a, b) => a.localeCompare(b));
+  }, [libraryVideos]);
 
   const featuredVideos = useMemo(
     () =>
       videoLibrary.filter(
-        (video) =>
-          video.type === "local" &&
-          video.category?.trim().toLowerCase() === "palmyra"
+        (video) => video.type === "local" && video.featured === true
       ),
     []
   );
@@ -183,24 +183,30 @@ export default function WatchPage() {
   const filteredVideos = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return videoLibrary.filter((video) => {
+    return libraryVideos.filter((video) => {
+      const videoCategory = video.category?.trim() || "";
+
       const matchesCategory =
-        activeCategory === "All" || video.category === activeCategory;
+        activeCategory === "All" ||
+        videoCategory.toLowerCase() === activeCategory.toLowerCase();
 
       const matchesSearch =
         !query ||
-        [video.title, video.name, video.description, video.category]
+        [video.title, video.name, video.description, videoCategory]
           .filter(Boolean)
           .some((value) => value!.toLowerCase().includes(query));
 
       return matchesCategory && matchesSearch;
     });
-  }, [search, activeCategory]);
+  }, [libraryVideos, search, activeCategory]);
 
   const visibleCategories = useMemo(
     () =>
       categories.filter((category) =>
-        filteredVideos.some((video) => video.category === category)
+        filteredVideos.some(
+          (video) =>
+            video.category?.trim().toLowerCase() === category.toLowerCase()
+        )
       ),
     [categories, filteredVideos]
   );
@@ -368,7 +374,7 @@ export default function WatchPage() {
           </div>
         </div>
 
-        {/* CATEGORY FILTERS */}
+        {/* CATEGORY FILTERS — GENERATED FROM lib/videos.ts */}
         <div className="mb-9 flex gap-2 overflow-x-auto pb-2">
           {["All", ...categories].map((category) => {
             const isActive = activeCategory === category;
@@ -405,10 +411,8 @@ export default function WatchPage() {
           </div>
 
           <span className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
-            {filteredVideos.filter((video) => video.type === "youtube").length}{" "}
-            YouTube ·{" "}
-            {filteredVideos.filter((video) => video.type === "local").length}{" "}
-            Originals
+            {categories.length}{" "}
+            {categories.length === 1 ? "category" : "categories"}
           </span>
         </div>
 
@@ -416,7 +420,8 @@ export default function WatchPage() {
         {filteredVideos.length > 0 ? (
           visibleCategories.map((category) => {
             const categoryVideos = filteredVideos.filter(
-              (video) => video.category === category
+              (video) =>
+                video.category?.trim().toLowerCase() === category.toLowerCase()
             );
 
             return (

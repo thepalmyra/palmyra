@@ -1,9 +1,8 @@
-
 "use client";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { videos } from "@/lib/videos";
+import { homeCategories, videos, type VideoItem } from "@/lib/videos";
 import { createClient } from "@/lib/supabase/client";
 
 type HomepageProduct = {
@@ -15,21 +14,7 @@ type HomepageProduct = {
   image: string;
 };
 
-type VideoItem = {
-  id: string;
-  type: "youtube" | "local";
-  title?: string;
-  name?: string;
-  category?: string;
-  thumbnail?: string;
-  youtubeId?: string;
-  youtubeUrl?: string;
-  videoUrl?: string;
-  url?: string;
-  description?: string;
-};
-
-const videoLibrary = videos as VideoItem[];
+const videoLibrary = videos;
 const FALLBACK_THUMBNAIL = "/images/video-placeholder.jpg";
 
 function getYoutubeId(video: VideoItem): string | undefined {
@@ -116,7 +101,7 @@ function ArrowIcon({
 }
 
 function VideoCard({ video }: { video: VideoItem }) {
-  const title = video.title || video.name || "Palmyra Original";
+  const title = video.title || "Palmyra Original";
 
   return (
     <Link
@@ -167,7 +152,7 @@ function VideoCard({ video }: { video: VideoItem }) {
         </div>
 
         <span className="absolute right-3 top-3 rounded-full border border-white/20 bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white backdrop-blur">
-          {video.type === "youtube" ? "YouTube" : "Original"}
+          YouTube
         </span>
       </div>
 
@@ -198,7 +183,9 @@ function VideoCollection({
   const [canScrollRight, setCanScrollRight] = useState(false);
 
   const collectionVideos = videoLibrary.filter(
-    (video) => video.category?.trim().toLowerCase() === category.toLowerCase()
+    (video) =>
+      video.type === "youtube" &&
+      video.category?.trim().toLowerCase() === category.trim().toLowerCase()
   );
 
   useEffect(() => {
@@ -311,13 +298,9 @@ export default function HomePage() {
   const [products, setProducts] = useState<HomepageProduct[]>([]);
   const [featuredIndex, setFeaturedIndex] = useState(0);
 
-  const featuredVideos = videoLibrary
-    .filter(
-      (video) =>
-        video.type === "local" &&
-        video.category?.trim().toLowerCase() === "palmyra"
-    )
-    .slice(0, 3);
+  const featuredVideos = videoLibrary.filter(
+    (video) => video.type === "local" && video.featured === true
+  );
 
   const featuredVideo =
     featuredVideos.length > 0
@@ -618,18 +601,15 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* VIDEO COLLECTIONS */}
-      <VideoCollection
-        name="Palmyra Originals"
-        subtitle="Stories, culture and the Palmyra identity."
-        category="Palmyra"
-      />
-
-      <VideoCollection
-        name="Football"
-        subtitle="The game, the energy and the moments that matter."
-        category="Football"
-      />
+      {/* VIDEO COLLECTIONS — SELECTED IN lib/videos.ts */}
+      {homeCategories.map((item) => (
+        <VideoCollection
+          key={item.category}
+          name={item.category}
+          subtitle={item.subtitle}
+          category={item.category}
+        />
+      ))}
 
       {/* COMMUNITY CAMPAIGN */}
       <section className="relative isolate overflow-hidden border-t border-white/10">

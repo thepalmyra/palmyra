@@ -1,4 +1,80 @@
-export const videos = [
+export type VideoItem = {
+  id: string;
+  type: "youtube" | "local";
+  title: string;
+  name?: string;
+  description?: string;
+  category?: string;
+  thumbnail?: string;
+  featured?: boolean;
+  youtubeId?: string;
+  youtubeUrl?: string;
+  videoUrl?: string;
+  url?: string;
+};
+
+/**
+ * HOME PAGE CATEGORIES
+ *
+ * Choose up to 3 categories for the Home page here.
+ * A category appears only when it has regular videos.
+ *
+ * Watch page categories are generated automatically from videos below.
+ */
+export const homeCategories = [
+  {
+    category: "Football",
+    subtitle: "The game, the energy and the moments that matter.",
+  },
+  {
+    category: "Movies",
+    subtitle: "Stories, trailers and films worth discovering.",
+  },
+  {
+    category: "Live TV",
+    subtitle: "Live streams and events worth watching.",
+  },
+] as const;
+
+/**
+ * VIDEO LIBRARY
+ *
+ * Keep the 3 permanent local intro videos at the top.
+ * They are used only for the Home and Watch autoplay banners.
+ *
+ * Add regular videos underneath.
+ * Regular YouTube videos appear automatically in their categories.
+ */
+export const videos: VideoItem[] = [
+  // PERMANENT PALMYRA INTRO VIDEOS — BANNERS ONLY
+  {
+    id: "palmyraintro1",
+    type: "local",
+    title: "Welcome to Palmyra",
+    description: "Palmyra Brand",
+    thumbnail: "/thumbnails/trending1.jpg",
+    featured: true,
+  },
+
+  {
+    id: "palmyraintro2",
+    type: "local",
+    title: "Welcome to Palmyra",
+    description: "Palmyra Brand",
+    thumbnail: "/thumbnails/trending2.jpg",
+    featured: true,
+  },
+
+  {
+    id: "palmyraintro3",
+    type: "local",
+    title: "Welcome to Palmyra",
+    description: "Palmyra Brand",
+    thumbnail: "/thumbnails/trending3.jpg",
+    featured: true,
+  },
+
+  // FOOTBALL VIDEOS
   {
     id: "7oGGGR7fsF0",
     type: "youtube",
@@ -15,7 +91,7 @@ export const videos = [
     category: "Football",
   },
 
-    {
+  {
     id: "L8taGwfp2sU",
     type: "youtube",
     title: "15 BEST Skill Moves to Beat Defenders in REAL GAMES",
@@ -23,30 +99,15 @@ export const videos = [
     category: "Football",
   },
 
-  {
-    id: "palmyraintro1",
-    type: "local",
-    title: "Welcome to Palmyra",
-    description: "Palmyra Brand",
-    thumbnail: "/thumbnails/trending1.jpg",
-    category: "Palmyra",
-  },
-
-  {
-    id: "palmyraintro2",
-    type: "local",
-    title: "Welcome to Palmyra",
-    description: "Palmyra Brand",
-    thumbnail: "/thumbnails/trending2.jpg",
-    category: "Palmyra",
-  },
-
-  {
-    id: "palmyraintro3",
-    type: "local",
-    title: "Welcome to Palmyra",
-    description: "Palmyra Brand",
-    thumbnail: "/thumbnails/trending3.jpg",
-    category: "Palmyra",
-  },
+  // ADD FUTURE VIDEOS BELOW
+  //
+  // YouTube video or live stream example:
+  //
+  // {
+  //   id: "YOUR_YOUTUBE_VIDEO_ID",
+  //   type: "youtube",
+  //   title: "Your video title",
+  //   description: "Channel or creator name",
+  //   category: "Football",
+  // },
 ];
