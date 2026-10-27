@@ -37,7 +37,7 @@ export const videos = [
     type: "local",
     title: "Welcome to Palmyra",
     description: "Palmyra Brand",
-    thumbnail: "/thumbnails/trending4.jpg",
+    thumbnail: "/thumbnails/trending2.jpg",
     category: "Palmyra",
   },
 
