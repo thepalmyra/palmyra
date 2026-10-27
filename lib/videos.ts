@@ -23,16 +23,17 @@ export type VideoItem = {
  */
 export const homeCategories = [
   {
+    category: "Live TV",
+    subtitle: "Watch live events and streams as they happen.",
+    liveOnly: true,
+  },
+  {
     category: "Football",
     subtitle: "The game, the energy and the moments that matter.",
   },
   {
     category: "Movies",
     subtitle: "Stories, trailers and films worth discovering.",
-  },
-  {
-    category: "Live TV",
-    subtitle: "Live streams and events worth watching.",
   },
 ] as const;
 
