@@ -101,6 +101,7 @@ function VideoCard({ video }: { video: VideoItem }) {
               isYouTube ? "bg-red-500" : "bg-amber-400"
             }`}
           />
+
           <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-white">
             {isYouTube ? "YouTube" : "Palmyra Original"}
           </span>
@@ -159,6 +160,7 @@ export default function WatchPage() {
       if (b.toLowerCase() === "palmyra") return 1;
       if (a.toLowerCase() === "football") return -1;
       if (b.toLowerCase() === "football") return 1;
+
       return a.localeCompare(b);
     });
   }, []);
@@ -251,6 +253,7 @@ export default function WatchPage() {
           <div className="max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/30 px-3.5 py-2 backdrop-blur-md">
               <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+
               <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/90">
                 The Palmyra streaming experience
               </span>
@@ -394,6 +397,7 @@ export default function WatchPage() {
             <h3 className="text-lg font-bold">
               {activeCategory === "All" ? "All videos" : activeCategory}
             </h3>
+
             <p className="mt-1 text-xs text-zinc-500">
               {filteredVideos.length}{" "}
               {filteredVideos.length === 1 ? "video" : "videos"} available
@@ -522,12 +526,12 @@ export default function WatchPage() {
             </div>
 
             <Link
-  href="/store"
-  className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold !text-black transition hover:bg-red-500 hover:!text-white"
->
-  Explore the store
-  <span aria-hidden="true">↗</span>
-</Link>
+              href="/store"
+              className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold !text-black transition hover:bg-red-500 hover:!text-white"
+            >
+              Explore the store
+              <span aria-hidden="true">↗</span>
+            </Link>
           </div>
         </div>
       </section>
