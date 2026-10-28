@@ -17,7 +17,6 @@ export const products: Product[] = [
     id: "cap",
     name: "Palmyra Performance Cap",
     price: 799,
-    originalPrice: 799,
     category: "Accessories",
     description:
       "A versatile Palmyra sports cap for everyday wear, training and outdoor activities.",
@@ -45,7 +44,6 @@ export const products: Product[] = [
     id: "sports-bag",
     name: "Palmyra Drawstring Bag",
     price: 599,
-    originalPrice: 599,
     category: "Accessories",
     description:
       "Carry your essentials in the Palmyra Drawstring Bag. A lightweight, versatile bag available in five colors.",
@@ -71,7 +69,6 @@ export const products: Product[] = [
   id: "signature-raglan-tee",
   name: "Palmyra Signature Raglan Tee",
   price: 899,
-  originalPrice: 899,
   category: "Sportswear",
   description:
     "Meet the Palmyra Signature Raglan Tee. Made from 100% cotton at 180 GSM, this long-sleeve raglan features contrasting sleeves and a classic fit for everyday comfort and streetwear style. Free delivery is included in the listed price.",
@@ -93,7 +90,6 @@ export const products: Product[] = [
   id: "unisex-headband",
   name: "Palmyra Unisex Sports Headband",
   price: 299,
-  originalPrice: 299,
   category: "Accessories",
   description:
     "A versatile unisex sports headband designed for workouts, running and everyday wear. Finished in white for a clean, minimal Palmyra look.",
