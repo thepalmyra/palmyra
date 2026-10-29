@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -11,6 +11,7 @@ function passwordStrength(value: string) {
   if (!value) return { score: 0, label: "Enter a password" };
 
   let score = 0;
+
   if (value.length >= 8) score++;
   if (value.length >= 12) score++;
   if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score++;
@@ -19,11 +20,14 @@ function passwordStrength(value: string) {
 
   if (score <= 1) return { score, label: "Weak" };
   if (score <= 3) return { score, label: "Fair" };
+
   return { score, label: "Strong" };
 }
 
 export default function SecurityPage() {
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [password, setPassword] = useState("");
@@ -36,7 +40,6 @@ export default function SecurityPage() {
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const supabase = createClient();
   const strength = passwordStrength(password);
   const verified = Boolean(user?.email_confirmed_at);
 
@@ -44,15 +47,25 @@ export default function SecurityPage() {
     let active = true;
 
     async function loadUser() {
-      const { data, error } = await supabase.auth.getUser();
-      if (!active) return;
+      try {
+        const { data, error } = await supabase.auth.getUser();
 
-      if (error) {
-        console.error("Security page authentication check:", error.message);
+        if (!active) return;
+
+        if (error) {
+          console.error(
+            "Security page authentication check:",
+            error.message
+          );
+        }
+
+        setUser(data.user ?? null);
+      } catch (error) {
+        console.error("Unable to load security page user:", error);
+        if (active) setUser(null);
+      } finally {
+        if (active) setLoading(false);
       }
-
-      setUser(data.user ?? null);
-      setLoading(false);
     }
 
     void loadUser();
@@ -60,7 +73,9 @@ export default function SecurityPage() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (active) setUser(session?.user ?? null);
+      if (active) {
+        setUser(session?.user ?? null);
+      }
     });
 
     return () => {
@@ -97,7 +112,9 @@ export default function SecurityPage() {
     setSaving(true);
 
     try {
-      const { data, error } = await supabase.auth.updateUser({ password });
+      const { data, error } = await supabase.auth.updateUser({
+        password,
+      });
 
       if (error) {
         setMessage(error.message);
@@ -105,6 +122,7 @@ export default function SecurityPage() {
       }
 
       if (data.user) setUser(data.user);
+
       setPassword("");
       setConfirmPassword("");
       setShowPassword(false);
@@ -141,9 +159,13 @@ export default function SecurityPage() {
       }
 
       setSuccess(true);
-      setMessage("Verification email requested. Check your inbox and spam folder.");
+      setMessage(
+        "Verification email requested. Check your inbox and spam folder."
+      );
     } catch {
-      setMessage("Unable to request a verification email. Please try again later.");
+      setMessage(
+        "Unable to request a verification email. Please try again later."
+      );
     } finally {
       setResending(false);
     }
@@ -155,8 +177,9 @@ export default function SecurityPage() {
     setSigningOutAll(true);
 
     try {
-      // Global scope ends this session and other sessions for this user.
-      const { error } = await supabase.auth.signOut({ scope: "global" });
+      const { error } = await supabase.auth.signOut({
+        scope: "global",
+      });
 
       if (error) {
         setMessage(error.message);
@@ -190,6 +213,7 @@ export default function SecurityPage() {
           <p className="mt-3 text-sm text-zinc-400">
             Sign in to manage your Palmyra account security.
           </p>
+
           <Link
             href="/login"
             className="mt-6 block rounded-xl bg-red-600 px-5 py-3 font-semibold hover:bg-red-700"
@@ -204,7 +228,10 @@ export default function SecurityPage() {
   return (
     <main className="min-h-screen bg-black px-4 py-10 text-white sm:px-6 sm:py-14">
       <div className="mx-auto max-w-3xl">
-        <Link href="/profile" className="text-sm text-zinc-400 hover:text-white">
+        <Link
+          href="/profile"
+          className="text-sm text-zinc-400 hover:text-white"
+        >
           ← Back to Profile
         </Link>
 
@@ -238,12 +265,14 @@ export default function SecurityPage() {
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-red-600/15 text-xl font-black text-red-300">
               {user.email?.[0]?.toUpperCase() ?? "P"}
             </div>
+
             <div className="min-w-0 flex-1">
               <h2 className="text-lg font-semibold">Email verification</h2>
               <p className="mt-1 break-all text-sm text-zinc-400">
                 {user.email}
               </p>
             </div>
+
             <span
               className={`w-fit rounded-full border px-3 py-1.5 text-xs ${
                 verified
@@ -265,13 +294,16 @@ export default function SecurityPage() {
                 Request a new verification email if you haven't received one.
                 Check your spam folder too.
               </p>
+
               <button
                 type="button"
                 onClick={resendVerification}
                 disabled={resending || !user.email}
                 className="mt-4 rounded-xl border border-white/15 px-4 py-3 text-sm font-semibold hover:border-red-500 disabled:opacity-50"
               >
-                {resending ? "Requesting email..." : "Resend verification email"}
+                {resending
+                  ? "Requesting email..."
+                  : "Resend verification email"}
               </button>
             </>
           )}
@@ -285,9 +317,13 @@ export default function SecurityPage() {
 
           <form onSubmit={updatePassword} className="mt-6 space-y-5">
             <div>
-              <label htmlFor="newPassword" className="mb-2 block text-sm text-zinc-300">
+              <label
+                htmlFor="newPassword"
+                className="mb-2 block text-sm text-zinc-300"
+              >
                 New password
               </label>
+
               <div className="flex overflow-hidden rounded-xl border border-white/15 bg-black focus-within:border-red-500">
                 <input
                   id="newPassword"
@@ -301,6 +337,7 @@ export default function SecurityPage() {
                   placeholder="Enter a new password"
                   className="min-w-0 flex-1 bg-transparent px-4 py-3 outline-none"
                 />
+
                 <button
                   type="button"
                   onClick={() => setShowPassword((value) => !value)}
@@ -314,17 +351,23 @@ export default function SecurityPage() {
               <div className="mt-3">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-zinc-500">Password strength</span>
-                  <span className={
-                    strength.label === "Strong"
-                      ? "text-green-300"
-                      : strength.label === "Fair"
-                        ? "text-amber-300"
-                        : "text-zinc-400"
-                  }>
+                  <span
+                    className={
+                      strength.label === "Strong"
+                        ? "text-green-300"
+                        : strength.label === "Fair"
+                          ? "text-amber-300"
+                          : "text-zinc-400"
+                    }
+                  >
                     {strength.label}
                   </span>
                 </div>
-                <div className="mt-2 grid grid-cols-5 gap-1.5" aria-hidden="true">
+
+                <div
+                  className="mt-2 grid grid-cols-5 gap-1.5"
+                  aria-hidden="true"
+                >
                   {[1, 2, 3, 4, 5].map((part) => (
                     <div
                       key={part}
@@ -340,6 +383,7 @@ export default function SecurityPage() {
                     />
                   ))}
                 </div>
+
                 <p className="mt-2 text-xs text-zinc-500">
                   Aim for 12+ characters, mixed case, a number and a symbol.
                 </p>
@@ -347,9 +391,13 @@ export default function SecurityPage() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="mb-2 block text-sm text-zinc-300">
+              <label
+                htmlFor="confirmPassword"
+                className="mb-2 block text-sm text-zinc-300"
+              >
                 Confirm new password
               </label>
+
               <div className="flex overflow-hidden rounded-xl border border-white/15 bg-black focus-within:border-red-500">
                 <input
                   id="confirmPassword"
@@ -359,19 +407,25 @@ export default function SecurityPage() {
                   minLength={8}
                   maxLength={128}
                   value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  onChange={(event) =>
+                    setConfirmPassword(event.target.value)
+                  }
                   placeholder="Enter the password again"
                   className="min-w-0 flex-1 bg-transparent px-4 py-3 outline-none"
                 />
+
                 <button
                   type="button"
                   onClick={() => setShowConfirm((value) => !value)}
                   className="px-4 text-sm text-zinc-400 hover:text-white"
-                  aria-label={showConfirm ? "Hide confirmation" : "Show confirmation"}
+                  aria-label={
+                    showConfirm ? "Hide confirmation" : "Show confirmation"
+                  }
                 >
                   {showConfirm ? "Hide" : "Show"}
                 </button>
               </div>
+
               {confirmPassword && password !== confirmPassword && (
                 <p className="mt-2 text-xs text-red-300">
                   The passwords do not match yet.
@@ -395,6 +449,7 @@ export default function SecurityPage() {
             If you think someone else may have access to your account, sign out
             all sessions. You'll need to sign in again on this device too.
           </p>
+
           <button
             type="button"
             onClick={signOutAllDevices}
@@ -403,8 +458,10 @@ export default function SecurityPage() {
           >
             {signingOutAll ? "Signing out..." : "Sign out all devices"}
           </button>
+
           <p className="mt-3 text-xs leading-5 text-zinc-500">
-            For security, this page doesn't display a list of devices or IP addresses.
+            For security, this page doesn't display a list of devices or IP
+            addresses.
           </p>
         </section>
 
