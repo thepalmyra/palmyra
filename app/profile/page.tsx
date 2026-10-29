@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -27,6 +27,12 @@ type Address = {
   is_default: boolean;
 };
 
+type DeletionRequest = {
+  id: number;
+  status: "pending" | "completed" | "rejected";
+  requested_at: string;
+};
+
 const money = (value: number | string | null) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -43,19 +49,34 @@ const dateLabel = (value: string) =>
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return "P";
-  return parts.slice(0, 2).map((part) => part[0].toUpperCase()).join("");
+  return parts.length
+    ? parts.slice(0, 2).map((part) => part[0].toUpperCase()).join("")
+    : "P";
+}
+
+function statusStyle(status: string | null) {
+  const value = (status ?? "processing").toLowerCase();
+
+  if (["delivered", "completed", "paid"].includes(value)) {
+    return "border-green-500/25 bg-green-500/10 text-green-300";
+  }
+
+  if (["cancelled", "canceled", "failed", "refunded"].includes(value)) {
+    return "border-red-500/25 bg-red-500/10 text-red-300";
+  }
+
+  return "border-amber-500/25 bg-amber-500/10 text-amber-300";
 }
 
 export default function ProfilePage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [submittingRequest, setSubmittingRequest] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -63,6 +84,8 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
+  const [deletionRequest, setDeletionRequest] =
+    useState<DeletionRequest | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -75,7 +98,7 @@ export default function ProfilePage() {
     );
     setPhone(currentUser.user_metadata?.phone ?? "");
 
-    const [ordersResult, addressesResult] = await Promise.all([
+    const [ordersResult, addressesResult, requestResult] = await Promise.all([
       supabase
         .from("orders")
         .select("id, order_number, status, created_at, total_amount")
@@ -91,26 +114,36 @@ export default function ProfilePage() {
         .eq("user_id", currentUser.id)
         .order("is_default", { ascending: false })
         .limit(3),
+
+      supabase
+        .from("account_deletion_requests")
+        .select("id, status, requested_at")
+        .eq("user_id", currentUser.id)
+        .eq("status", "pending")
+        .maybeSingle(),
     ]);
 
     if (ordersResult.error) {
-      console.error("Profile orders load failed:", ordersResult.error.message);
-      setError("Your recent orders could not be loaded. Please try again later.");
+      console.error("Orders load failed:", ordersResult.error.message);
+      setError("Recent orders could not be loaded.");
     } else {
       setOrders((ordersResult.data ?? []) as Order[]);
     }
 
     if (addressesResult.error) {
-      console.error(
-        "Profile addresses load failed:",
-        addressesResult.error.message
-      );
-      setError((previous) =>
-        previous ||
-        "Your saved addresses could not be loaded. Please try again later."
-      );
+      console.error("Addresses load failed:", addressesResult.error.message);
+      setError((previous) => previous || "Saved addresses could not be loaded.");
     } else {
       setAddresses((addressesResult.data ?? []) as Address[]);
+    }
+
+    if (requestResult.error) {
+      console.error("Deletion request load failed:", requestResult.error.message);
+      // Do not block the profile if the request table is not configured yet.
+    } else {
+      setDeletionRequest(
+        (requestResult.data as DeletionRequest | null) ?? null
+      );
     }
   }, [supabase]);
 
@@ -119,6 +152,7 @@ export default function ProfilePage() {
 
     async function init() {
       const { data, error: authError } = await supabase.auth.getUser();
+
       if (!active) return;
 
       if (authError) {
@@ -132,6 +166,7 @@ export default function ProfilePage() {
       }
 
       await loadDashboard(data.user);
+
       if (active) setLoading(false);
     }
 
@@ -146,10 +181,9 @@ export default function ProfilePage() {
         setUser(null);
         setOrders([]);
         setAddresses([]);
+        setDeletionRequest(null);
         setLoading(false);
       } else {
-        // The initial load handles dashboard data. Update identity here;
-        // avoid making additional Supabase requests inside this callback.
         setUser(session.user);
       }
     });
@@ -212,29 +246,47 @@ export default function ProfilePage() {
     }
   }
 
-  async function deleteAccount() {
+  async function requestAccountDeletion() {
     setError("");
     setNotice("");
-    setDeleting(true);
+    setSubmittingRequest(true);
 
     try {
       const response = await fetch("/api/account/delete", {
         method: "DELETE",
+        headers: { Accept: "application/json" },
       });
+
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setError(result.error ?? "Unable to delete your account.");
+        setError(result.error ?? "Unable to submit your request.");
         return;
       }
 
-      await supabase.auth.signOut({ scope: "local" });
-      router.replace("/");
-      router.refresh();
+      setNotice(
+        result.message ??
+          "Your account deletion request has been submitted for review."
+      );
+      setConfirmDelete(false);
+
+      // Refresh the pending request from Supabase.
+      if (user) {
+        const { data, error: requestError } = await supabase
+          .from("account_deletion_requests")
+          .select("id, status, requested_at")
+          .eq("user_id", user.id)
+          .eq("status", "pending")
+          .maybeSingle();
+
+        if (!requestError) {
+          setDeletionRequest((data as DeletionRequest | null) ?? null);
+        }
+      }
     } catch {
-      setError("Unable to delete your account. Please try again.");
+      setError("Unable to submit your request. Please try again.");
     } finally {
-      setDeleting(false);
+      setSubmittingRequest(false);
     }
   }
 
@@ -276,20 +328,32 @@ export default function ProfilePage() {
   const memberName =
     fullName.trim() || user.email?.split("@")[0] || "Palmyra Member";
   const verified = Boolean(user.email_confirmed_at);
+  const completedRecentOrders = orders.filter((order) =>
+    ["delivered", "completed"].includes((order.status ?? "").toLowerCase())
+  ).length;
+  const recentOrderValue = orders.reduce(
+    (sum, order) => sum + Number(order.total_amount ?? 0),
+    0
+  );
 
   return (
-    <main className="min-h-screen bg-black px-4 py-8 text-white sm:px-6 sm:py-12">
+    <main className="min-h-screen bg-black px-4 py-6 text-white sm:px-6 sm:py-10">
       <div className="mx-auto max-w-6xl">
-        <header className="flex items-center justify-between border-b border-white/10 pb-5">
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
           <Link href="/" className="text-2xl font-black tracking-[0.18em] text-red-500">
             PALMYRA
           </Link>
-          <Link
-            href="/store"
-            className="rounded-full border border-white/15 px-4 py-2 text-sm hover:border-red-500 hover:text-red-400"
-          >
-            Continue shopping →
-          </Link>
+          <nav className="flex flex-wrap items-center gap-3 text-sm">
+            <Link href="/store" className="text-zinc-300 hover:text-white">
+              Store
+            </Link>
+            <Link
+              href="/orders"
+              className="rounded-full border border-white/15 px-4 py-2 hover:border-red-500 hover:text-red-300"
+            >
+              My orders →
+            </Link>
+          </nav>
         </header>
 
         {(error || notice) && (
@@ -305,14 +369,15 @@ export default function ProfilePage() {
           </div>
         )}
 
-        <section className="relative mt-8 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-zinc-900 via-zinc-950 to-red-950/30 p-6 sm:p-10">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+        <section className="relative mt-7 overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-zinc-900 via-zinc-950 to-red-950/40 p-6 sm:p-9">
+          <div className="pointer-events-none absolute -right-12 -top-16 h-56 w-56 rounded-full bg-red-600/10 blur-3xl" />
+          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
             <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-red-500/40 bg-red-600/15 text-3xl font-black text-red-300">
               {initials(memberName)}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-400">
-                My Palmyra
+                Your member space
               </p>
               <h1 className="mt-2 break-words text-3xl font-bold sm:text-4xl">
                 Welcome, {memberName}
@@ -386,7 +451,7 @@ export default function ProfilePage() {
                   Email: <span className="break-all text-zinc-200">{user.email}</span>
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">
-                  To change your email, use your account's email-change flow.
+                  To change your email, use your account&apos;s email-change flow.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 sm:col-span-2">
@@ -400,7 +465,9 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setFullName(user.user_metadata?.full_name ?? user.user_metadata?.name ?? "");
+                    setFullName(
+                      user.user_metadata?.full_name ?? user.user_metadata?.name ?? ""
+                    );
                     setPhone(user.user_metadata?.phone ?? "");
                     setEditing(false);
                   }}
@@ -413,23 +480,26 @@ export default function ProfilePage() {
           </section>
         )}
 
-        <section className="mt-8 grid gap-6 lg:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-zinc-950 p-6">
+        <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-white/10 bg-zinc-950 p-5">
             <p className="text-sm text-zinc-400">Recent orders</p>
-            <p className="mt-2 text-3xl font-bold">{orders.length}</p>
-            <p className="mt-1 text-xs text-zinc-500">Latest five orders shown below</p>
+            <p className="mt-3 text-3xl font-bold">{orders.length}</p>
+            <p className="mt-2 text-xs text-zinc-500">Up to five latest orders</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-zinc-950 p-6">
+          <div className="rounded-2xl border border-white/10 bg-zinc-950 p-5">
+            <p className="text-sm text-zinc-400">Recently completed</p>
+            <p className="mt-3 text-3xl font-bold">{completedRecentOrders}</p>
+            <p className="mt-2 text-xs text-zinc-500">Among the latest five orders</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-zinc-950 p-5">
+            <p className="text-sm text-zinc-400">Recent order value</p>
+            <p className="mt-3 break-words text-2xl font-bold">{money(recentOrderValue)}</p>
+            <p className="mt-2 text-xs text-zinc-500">Sum of loaded recent orders</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-zinc-950 p-5">
             <p className="text-sm text-zinc-400">Saved addresses</p>
-            <p className="mt-2 text-3xl font-bold">{addresses.length}</p>
-            <p className="mt-1 text-xs text-zinc-500">Latest three addresses shown below</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-zinc-950 p-6">
-            <p className="text-sm text-zinc-400">Account security</p>
-            <p className="mt-2 text-lg font-bold">{verified ? "Email verified" : "Verification needed"}</p>
-            <Link href="/profile/security" className="mt-2 inline-block text-sm text-red-400 hover:text-red-300">
-              Manage security →
-            </Link>
+            <p className="mt-3 text-3xl font-bold">{addresses.length}</p>
+            <p className="mt-2 text-xs text-zinc-500">Up to three saved addresses</p>
           </div>
         </section>
 
@@ -460,7 +530,9 @@ export default function ProfilePage() {
                     <div className="min-w-0">
                       <p className="font-semibold">{order.order_number || `Order #${order.id}`}</p>
                       <p className="mt-1 text-xs text-zinc-500">{dateLabel(order.created_at)}</p>
-                      <p className="mt-1 text-xs capitalize text-zinc-400">{order.status || "Processing"}</p>
+                      <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs capitalize ${statusStyle(order.status)}`}>
+                        {order.status || "Processing"}
+                      </span>
                     </div>
                     <p className="font-semibold">{money(order.total_amount)}</p>
                   </div>
@@ -473,7 +545,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-bold">Saved addresses</h2>
-                <p className="mt-1 text-sm text-zinc-400">Manage delivery details.</p>
+                <p className="mt-1 text-sm text-zinc-400">Your delivery details.</p>
               </div>
               <Link href="/addresses" className="shrink-0 text-sm text-red-400 hover:text-red-300">
                 Manage →
@@ -511,64 +583,98 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        <section className="mt-8 rounded-2xl border border-white/10 bg-zinc-950 p-6">
+        <section className="mt-8 rounded-2xl border border-white/10 bg-zinc-950 p-6 sm:p-8">
           <h2 className="text-xl font-bold">Account & security</h2>
+          <p className="mt-1 text-sm text-zinc-400">
+            Manage your account, privacy and sign-in settings.
+          </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <Link href="/profile/security" className="rounded-xl border border-white/10 p-4 hover:border-red-500/50">
+            <Link href="/profile/security" className="rounded-xl border border-white/10 p-4 transition hover:border-red-500/50 hover:bg-white/[0.02]">
               <p className="font-semibold">Password & sessions</p>
-              <p className="mt-1 text-sm text-zinc-400">Update your password and manage sign-in sessions.</p>
+              <p className="mt-1 text-sm text-zinc-400">Update your password and manage security.</p>
             </Link>
-            <Link href="/addresses" className="rounded-xl border border-white/10 p-4 hover:border-red-500/50">
+            <Link href="/addresses" className="rounded-xl border border-white/10 p-4 transition hover:border-red-500/50 hover:bg-white/[0.02]">
               <p className="font-semibold">Delivery addresses</p>
               <p className="mt-1 text-sm text-zinc-400">Add, edit, or remove saved addresses.</p>
             </Link>
-            <Link href="/orders" className="rounded-xl border border-white/10 p-4 hover:border-red-500/50">
+            <Link href="/orders" className="rounded-xl border border-white/10 p-4 transition hover:border-red-500/50 hover:bg-white/[0.02]">
               <p className="font-semibold">Order history</p>
-              <p className="mt-1 text-sm text-zinc-400">Review orders and their current status.</p>
+              <p className="mt-1 text-sm text-zinc-400">Review your purchases and order status.</p>
             </Link>
             <button
               type="button"
               onClick={signOut}
               disabled={signingOut}
-              className="rounded-xl border border-red-500/30 p-4 text-left hover:bg-red-500/5 disabled:opacity-50"
+              className="rounded-xl border border-white/10 p-4 text-left transition hover:border-red-500/50 hover:bg-white/[0.02] disabled:opacity-50"
             >
-              <p className="font-semibold text-red-300">{signingOut ? "Signing out..." : "Sign out of this device"}</p>
-              <p className="mt-1 text-sm text-zinc-400">End this browser session securely.</p>
+              <p className="font-semibold">{signingOut ? "Signing out..." : "Sign out of this device"}</p>
+              <p className="mt-1 text-sm text-zinc-400">End this browser session.</p>
             </button>
           </div>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-red-500/25 bg-red-950/10 p-6">
-          <h2 className="font-semibold text-red-300">Delete account</h2>
-          <p className="mt-2 text-sm leading-6 text-zinc-400">
-            Permanently delete your Palmyra login account. Order or payment
-            records may need to be retained where legally required.
-          </p>
-          {!confirmDelete ? (
+        <section className="mt-6 rounded-2xl border border-red-500/25 bg-gradient-to-br from-red-950/20 to-zinc-950 p-6 sm:p-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-400">
+                Privacy controls
+              </p>
+              <h2 className="mt-2 text-xl font-bold">Delete account</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
+                You can request deletion of your Palmyra account. The request
+                will be reviewed manually. Your account will not be deleted
+                immediately when you submit this request. Some order or
+                transaction records may need to be retained where legally required.
+              </p>
+            </div>
+            <span className="inline-flex shrink-0 items-center rounded-full border border-white/10 px-3 py-1.5 text-xs text-zinc-300">
+              {deletionRequest ? "Request pending" : "Manual review"}
+            </span>
+          </div>
+
+          {deletionRequest ? (
+            <div className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+              <p className="font-semibold text-amber-300">Request submitted</p>
+              <p className="mt-2 text-sm text-zinc-300">
+                Status: Pending review
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Submitted on {dateLabel(deletionRequest.requested_at)}
+              </p>
+            </div>
+          ) : !confirmDelete ? (
             <button
               type="button"
-              onClick={() => setConfirmDelete(true)}
-              className="mt-4 rounded-xl border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-500/10"
+              onClick={() => {
+                setError("");
+                setNotice("");
+                setConfirmDelete(true);
+              }}
+              className="mt-5 rounded-xl border border-red-500/40 px-4 py-3 text-sm font-semibold text-red-300 transition hover:bg-red-500/10"
             >
-              Delete my account
+              Request account deletion
             </button>
           ) : (
-            <div className="mt-4 rounded-xl border border-red-500/20 p-4">
-              <p className="text-sm font-semibold">Are you sure? This action cannot be undone.</p>
+            <div className="mt-5 rounded-xl border border-red-500/20 bg-black/40 p-4">
+              <p className="font-semibold">Submit a deletion request?</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
+                This submits a request for manual review. It does not delete
+                your account immediately.
+              </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={deleteAccount}
-                  disabled={deleting}
-                  className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+                  onClick={requestAccountDeletion}
+                  disabled={submittingRequest}
+                  className="rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
                 >
-                  {deleting ? "Deleting..." : "Yes, delete account"}
+                  {submittingRequest ? "Submitting..." : "Confirm request"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(false)}
-                  disabled={deleting}
-                  className="rounded-xl border border-white/15 px-4 py-2 text-sm hover:bg-white/5"
+                  disabled={submittingRequest}
+                  className="rounded-xl border border-white/15 px-4 py-3 text-sm hover:bg-white/5"
                 >
                   Cancel
                 </button>

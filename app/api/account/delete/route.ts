@@ -1,40 +1,10 @@
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 
 export async function DELETE() {
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
-
-    if (!url || !anonKey || !serviceRoleKey) {
-      return NextResponse.json(
-        { error: "Account deletion is not configured." },
-        { status: 500 }
-      );
-    }
-
-    const cookieStore = await cookies();
-
-    const supabase = createServerClient(url, anonKey, {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          } catch {
-            // Cookies may be read-only in some contexts.
-          }
-        },
-      },
-    });
+    const supabase = await createClient();
 
     const {
       data: { user },
@@ -43,32 +13,82 @@ export async function DELETE() {
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: "Please sign in again to delete your account." },
+        { error: "Please sign in to request account deletion." },
         { status: 401 }
       );
     }
 
-    const admin = createClient(url, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
+    const email = user.email;
 
-    const { error: deleteError } =
-      await admin.auth.admin.deleteUser(user.id);
+    if (!email) {
+      return NextResponse.json(
+        { error: "Unable to find your account email." },
+        { status: 400 }
+      );
+    }
 
-    if (deleteError) {
-      console.error("Account deletion failed:", deleteError.message);
+    const { data: existingRequest, error: lookupError } =
+      await supabase
+        .from("account_deletion_requests")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+        .maybeSingle();
+
+    if (lookupError) {
+      console.error(
+        "Deletion request lookup failed:",
+        lookupError.message
+      );
 
       return NextResponse.json(
-        { error: "Unable to delete your account. Please contact support." },
+        { error: "Unable to check your deletion request. Please try again." },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ success: true });
-  } catch {
+    if (existingRequest) {
+      return NextResponse.json({
+        success: true,
+        message: "Your account deletion request is already pending.",
+      });
+    }
+
+    const { error: insertError } = await supabase
+      .from("account_deletion_requests")
+      .insert({
+        user_id: user.id,
+        email,
+        full_name:
+          typeof user.user_metadata?.full_name === "string"
+            ? user.user_metadata.full_name
+            : null,
+        status: "pending",
+      });
+
+    if (insertError) {
+      console.error(
+        "Deletion request submission failed:",
+        insertError.message
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "Unable to submit your request. Please try again later.",
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message:
+        "Your account deletion request has been submitted. Your account will remain active until it is reviewed.",
+    });
+  } catch (error) {
+    console.error("Account deletion request error:", error);
+
     return NextResponse.json(
       { error: "Something went wrong. Please try again." },
       { status: 500 }
