@@ -1,9 +1,9 @@
+
 "use client";
 
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
-import { videos, type VideoItem } from "@/lib/videos";
-import { watchCategories } from "@/lib/videos";
+import { videos, watchCategories, type VideoItem } from "@/lib/videos";
 
 const videoLibrary = videos;
 
@@ -156,6 +156,7 @@ export default function WatchPage() {
     []
   );
 
+  // Category order is controlled by watchCategories in lib/videos.ts.
   const categories = useMemo(() => {
     const allCategories = Array.from(
       new Set(
@@ -165,16 +166,25 @@ export default function WatchPage() {
       )
     );
 
+    const categoryOrder = watchCategories.map((item) =>
+      item.category.trim().toLowerCase()
+    );
+
     return allCategories.sort((a, b) => {
-     const aIsLive = a.toLowerCase() === "live tv" || a.toLowerCase() === "live";
-     const bIsLive = b.toLowerCase() === "live tv" || b.toLowerCase() === "live";
+      const aIndex = categoryOrder.indexOf(a.toLowerCase());
+      const bIndex = categoryOrder.indexOf(b.toLowerCase());
 
-     if (aIsLive && !bIsLive) return -1;
-     if (!aIsLive && bIsLive) return 1;
+      // Categories configured in watchCategories come first.
+      if (aIndex !== -1 && bIndex === -1) return -1;
+      if (aIndex === -1 && bIndex !== -1) return 1;
 
-     return a.localeCompare(b);
+      // Unconfigured categories are sorted alphabetically.
+      if (aIndex === -1 && bIndex === -1) {
+        return a.localeCompare(b);
+      }
+
+      return aIndex - bIndex;
     });
-    
   }, [libraryVideos]);
 
   const featuredVideos = useMemo(
@@ -384,7 +394,7 @@ export default function WatchPage() {
           </div>
         </div>
 
-        {/* CATEGORY FILTERS — GENERATED FROM lib/videos.ts */}
+        {/* CATEGORY FILTERS — ORDERED FROM lib/videos.ts */}
         <div className="mb-9 flex gap-2 overflow-x-auto pb-2">
           {["All", ...categories].map((category) => {
             const isActive = activeCategory === category;

@@ -1,3 +1,4 @@
+
 export type VideoItem = {
   id: string;
   type: "youtube" | "local";
@@ -15,11 +16,7 @@ export type VideoItem = {
 
 /**
  * HOME PAGE CATEGORIES
- *
- * Choose up to 3 categories for the Home page here.
- * A category appears only when it has regular videos.
- *
- * Watch page categories are generated automatically from videos below.
+ * Controls the categories displayed on the Home page.
  */
 export const homeCategories = [
   {
@@ -37,6 +34,15 @@ export const homeCategories = [
   },
 ];
 
+/**
+ * WATCH PAGE CATEGORY ORDER
+ *
+ * Move categories up or down to change their display order.
+ * Categories with videos appear in this order.
+ * New categories not listed here appear alphabetically afterward.
+ *
+ * Category names must match the category assigned to videos below.
+ */
 export const watchCategories = [
   {
     category: "Live Now",
@@ -64,11 +70,13 @@ export const watchCategories = [
 /**
  * VIDEO LIBRARY
  *
- * Keep the 3 permanent local intro videos at the top.
- * They are used only for the Home and Watch autoplay banners.
+ * LOCAL INTRO VIDEOS:
+ * Used for the autoplaying Home and Watch banners.
  *
- * Add regular videos underneath.
- * Regular YouTube videos appear automatically in their categories.
+ * YOUTUBE VIDEOS:
+ * Appear in the Watch library under their assigned category.
+ *
+ * To manage videos, add, edit, or remove entries below.
  */
 export const videos: VideoItem[] = [
   // PERMANENT PALMYRA INTRO VIDEOS — BANNERS ONLY
@@ -80,7 +88,6 @@ export const videos: VideoItem[] = [
     thumbnail: "/thumbnails/trending1.jpg",
     featured: true,
   },
-
   {
     id: "palmyraintro2",
     type: "local",
@@ -89,7 +96,6 @@ export const videos: VideoItem[] = [
     thumbnail: "/thumbnails/trending2.jpg",
     featured: true,
   },
-
   {
     id: "palmyraintro3",
     type: "local",
@@ -100,7 +106,6 @@ export const videos: VideoItem[] = [
   },
 
   // LIVE STREAM
-
   {
     id: "Ay1gYmJoFMk",
     type: "youtube",
@@ -109,7 +114,7 @@ export const videos: VideoItem[] = [
     category: "Live Now",
   },
 
-  // FOOTBALL VIDEOS
+  // LEVELUP VIDEOS
   {
     id: "7oGGGR7fsF0",
     type: "youtube",
@@ -117,7 +122,6 @@ export const videos: VideoItem[] = [
     description: "AllAttack",
     category: "LevelUp",
   },
-
   {
     id: "pCXNfq8H3Tg",
     type: "youtube",
@@ -125,7 +129,6 @@ export const videos: VideoItem[] = [
     description: "AllAttack",
     category: "LevelUp",
   },
-
   {
     id: "L8taGwfp2sU",
     type: "youtube",
@@ -133,10 +136,8 @@ export const videos: VideoItem[] = [
     description: "AllAttack",
     category: "LevelUp",
   },
-  
+
   // ADD FUTURE VIDEOS BELOW
-  //
-  // YouTube video or live stream example:
   //
   // {
   //   id: "YOUR_YOUTUBE_VIDEO_ID",
