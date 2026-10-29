@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { videos, type VideoItem } from "@/lib/videos";
+import { watchCategories } from "@/lib/videos";
 
 const videoLibrary = videos;
 
