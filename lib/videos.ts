@@ -20,7 +20,7 @@ export type VideoItem = {
  */
 export const homeCategories = [
   {
-    category: "Live Now",
+    category: "Live Stream",
     subtitle: "Watch live events and streams as they happen.",
     liveOnly: true,
   },
@@ -45,7 +45,7 @@ export const homeCategories = [
  */
 export const watchCategories = [
   {
-    category: "Live Now",
+    category: "Live Stream",
     subtitle: "Watch live events and streams as they happen.",
     liveOnly: true,
   },
@@ -107,14 +107,56 @@ export const videos: VideoItem[] = [
 
   // LIVE STREAM
   {
+    id: "k178PJ6DfII",
+    type: "youtube",
+    title: "LIVE: Inter Kashi FC vs FC Goa | MG ISL 2026-27 | Gameweek 4",
+    description: "MG Indian Super League",
+    category: "Live Stream",
+  },
+  {
+    id: "gWexbVfNmFo",
+    type: "youtube",
+    title: "LIVE: Mumbai City FC vs Sporting Club Delhi | MG ISL 2026-27 | Gameweek 4",
+    description: "MG Indian Super League",
+    category: "Live Stream",
+  },
+  {
+    id: "nZ8rESpcRTU",
+    type: "youtube",
+    title: "LIVE: Mohun Bagan Super Giant vs Punjab FC | MG ISL 2026-27 | Gameweek 4",
+    description: "MG Indian Super League",
+    category: "Live Stream",
+  },
+  {
+    id: "raS61rqsQQI",
+    type: "youtube",
+    title: "LIVE: Chennaiyin FC vs Kerala Blasters FC | MG ISL 2026-27 | Gameweek 4",
+    description: "MG Indian Super League",
+    category: "Live Stream",
+  },
+  {
+    id: "dNbGWuWcG5Y",
+    type: "youtube",
+    title: "LIVE: NorthEast United FC vs Bengaluru FC | MG ISL 2026-27 | Gameweek 4",
+    description: "MG Indian Super League",
+    category: "Live Stream",
+  },
+  {
     id: "Ay1gYmJoFMk",
     type: "youtube",
-    title: "LIVE: FC Goa vs Sporting Club Delhi | MG ISL 2026-27",
+    title: "REPLAY: FC Goa vs Sporting Club Delhi | MG ISL 2026-27",
     description: "MG Indian Super League",
-    category: "Live Now",
+    category: "Live Stream",
   },
 
   // LEVELUP VIDEOS
+  {
+    id: "Qi6_A2Utqzk",
+    type: "youtube",
+    title: "ASMR Solo Training in adidas F50 Hyperfast Elite Y-3",
+    description: "7mlc",
+    category: "LevelUp",
+  },
   {
     id: "7oGGGR7fsF0",
     type: "youtube",
