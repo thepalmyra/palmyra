@@ -35,7 +35,31 @@ export const homeCategories = [
     category: "Movies",
     subtitle: "Stories, trailers and films worth discovering.",
   },
-] as const;
+];
+
+export const watchCategories = [
+  {
+    category: "Live Now",
+    subtitle: "Watch live events and streams as they happen.",
+    liveOnly: true,
+  },
+  {
+    category: "LevelUp",
+    subtitle: "Improve your game with training drills.",
+  },
+  {
+    category: "Featured",
+    subtitle: "Discover featured videos and highlights.",
+  },
+  {
+    category: "Football",
+    subtitle: "Watch football videos and highlights.",
+  },
+  {
+    category: "Movies",
+    subtitle: "Explore movies and entertainment.",
+  },
+];
 
 /**
  * VIDEO LIBRARY
