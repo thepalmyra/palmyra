@@ -95,7 +95,7 @@ function LoginForm() {
     !requestedDestination.startsWith("//") &&
     !requestedDestination.includes("\\")
       ? requestedDestination
-      : "/store";
+      : "/profile";
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -406,6 +406,16 @@ function LoginForm() {
                     placeholder="Enter your password"
                     className="min-h-[52px] w-full min-w-0 rounded-xl border border-white/[0.10] bg-black/40 py-3.5 pl-12 pr-4 text-[14px] text-white outline-none transition duration-200 placeholder:text-neutral-600 hover:border-white/[0.17] focus:border-red-500 focus:bg-black/60 focus:ring-4 focus:ring-red-500/[0.08]"
                   />
+                </div>
+
+                {/* Password recovery link */}
+                <div className="mt-3 flex justify-end">
+                  <Link
+                    href="/forgot-password"
+                    className="rounded-md text-xs font-semibold text-red-400 underline-offset-4 transition hover:text-red-300 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
               </div>
 
