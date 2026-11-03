@@ -2,10 +2,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { videos, watchCategories, type VideoItem } from "@/lib/videos";
-
-const videoLibrary = videos;
 
 const FALLBACK_THUMBNAIL = "/images/video-placeholder.jpg";
 
@@ -100,7 +98,6 @@ function VideoCard({ video }: { video: VideoItem }) {
 
         <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-white/15 bg-black/65 px-2.5 py-1.5 backdrop-blur-md">
           <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-
           <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-white">
             YouTube
           </span>
@@ -128,9 +125,9 @@ function VideoCard({ video }: { video: VideoItem }) {
           {title}
         </h3>
 
-        {video.description && (
+        {(video.name || video.description) && (
           <p className="mt-1.5 line-clamp-1 text-xs text-zinc-500">
-            {video.description}
+            {video.name || video.description}
           </p>
         )}
       </div>
@@ -142,18 +139,85 @@ export default function WatchPage() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [featuredIndex, setFeaturedIndex] = useState(0);
+  const [adminVideos, setAdminVideos] = useState<VideoItem[]>([]);
+  const [loadingVideos, setLoadingVideos] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Only regular YouTube videos belong to the Watch category library.
-  // Local intro videos are reserved for the autoplaying banner.
+  // Load visible YouTube videos added through Admin.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadVideos() {
+      try {
+        setLoadingVideos(true);
+        setLoadError("");
+
+        const response = await fetch("/api/videos", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Unable to load videos.");
+        }
+
+        if (!Array.isArray(result.videos)) {
+          throw new Error("Invalid video response from server.");
+        }
+
+        if (!cancelled) {
+          setAdminVideos(result.videos);
+        }
+      } catch (error) {
+        console.error("Watch page video loading error:", error);
+
+        if (!cancelled) {
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load videos."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingVideos(false);
+        }
+      }
+    }
+
+    loadVideos();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Only local Palmyra intro videos are used for the autoplaying banner.
+  const featuredVideos = useMemo(
+    () =>
+      videos.filter(
+        (video) => video.type === "local" && video.featured === true
+      ),
+    []
+  );
+
+  const featuredVideo =
+    featuredVideos.length > 0
+      ? featuredVideos[featuredIndex % featuredVideos.length]
+      : undefined;
+
+  // Admin YouTube videos are loaded from Supabase.
   const libraryVideos = useMemo(
     () =>
-      videoLibrary.filter(
+      adminVideos.filter(
         (video) =>
           video.type === "youtube" && Boolean(video.category?.trim())
       ),
-    []
+    [adminVideos]
   );
 
   // Category order is controlled by watchCategories in lib/videos.ts.
@@ -174,11 +238,9 @@ export default function WatchPage() {
       const aIndex = categoryOrder.indexOf(a.toLowerCase());
       const bIndex = categoryOrder.indexOf(b.toLowerCase());
 
-      // Categories configured in watchCategories come first.
       if (aIndex !== -1 && bIndex === -1) return -1;
       if (aIndex === -1 && bIndex !== -1) return 1;
 
-      // Unconfigured categories are sorted alphabetically.
       if (aIndex === -1 && bIndex === -1) {
         return a.localeCompare(b);
       }
@@ -186,19 +248,6 @@ export default function WatchPage() {
       return aIndex - bIndex;
     });
   }, [libraryVideos]);
-
-  const featuredVideos = useMemo(
-    () =>
-      videoLibrary.filter(
-        (video) => video.type === "local" && video.featured === true
-      ),
-    []
-  );
-
-  const featuredVideo =
-    featuredVideos.length > 0
-      ? featuredVideos[featuredIndex % featuredVideos.length]
-      : undefined;
 
   const filteredVideos = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -271,7 +320,6 @@ export default function WatchPage() {
           </video>
         )}
 
-        {/* No poster or thumbnail is used for the featured video. */}
         <div className="absolute inset-0 -z-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
         <div className="absolute inset-0 -z-0 bg-gradient-to-t from-[#080808] via-black/10 to-black/30" />
 
@@ -279,7 +327,6 @@ export default function WatchPage() {
           <div className="max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/30 px-3.5 py-2 backdrop-blur-md">
               <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-
               <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/90">
                 The Palmyra streaming experience
               </span>
@@ -347,7 +394,7 @@ export default function WatchPage() {
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-24 bg-gradient-to-t from-[#080808] to-transparent" />
       </section>
 
-      {/* LIBRARY HEADER AND SEARCH */}
+      {/* VIDEO LIBRARY */}
       <section
         id="video-library"
         className="mx-auto max-w-[1440px] scroll-mt-20 px-5 pb-16 pt-8 sm:px-10 sm:pb-20 lg:px-16"
@@ -394,7 +441,7 @@ export default function WatchPage() {
           </div>
         </div>
 
-        {/* CATEGORY FILTERS — ORDERED FROM lib/videos.ts */}
+        {/* CATEGORY FILTERS */}
         <div className="mb-9 flex gap-2 overflow-x-auto pb-2">
           {["All", ...categories].map((category) => {
             const isActive = activeCategory === category;
@@ -417,7 +464,6 @@ export default function WatchPage() {
           })}
         </div>
 
-        {/* LIBRARY STATS */}
         <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-5">
           <div>
             <h3 className="text-lg font-bold">
@@ -425,8 +471,11 @@ export default function WatchPage() {
             </h3>
 
             <p className="mt-1 text-xs text-zinc-500">
-              {filteredVideos.length}{" "}
-              {filteredVideos.length === 1 ? "video" : "videos"} available
+              {loadingVideos
+                ? "Loading videos..."
+                : `${filteredVideos.length} ${
+                    filteredVideos.length === 1 ? "video" : "videos"
+                  } available`}
             </p>
           </div>
 
@@ -436,8 +485,30 @@ export default function WatchPage() {
           </span>
         </div>
 
-        {/* FILTERED VIDEO COLLECTIONS */}
-        {filteredVideos.length > 0 ? (
+        {/* LOADING */}
+        {loadingVideos && (
+          <div className="rounded-3xl border border-white/10 bg-white/[0.025] px-5 py-16 text-center">
+            <p className="text-sm text-zinc-400">Loading Palmyra videos...</p>
+          </div>
+        )}
+
+        {/* API ERROR */}
+        {!loadingVideos && loadError && (
+          <div className="rounded-3xl border border-red-500/20 bg-red-500/[0.05] px-5 py-16 text-center">
+            <h3 className="text-xl font-bold">Unable to load videos</h3>
+            <p className="mt-2 text-sm text-zinc-400">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-6 rounded-xl bg-red-600 px-5 py-3 text-sm font-bold transition hover:bg-red-500"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {/* VIDEO COLLECTIONS */}
+        {!loadingVideos && !loadError && filteredVideos.length > 0 && (
           visibleCategories.map((category) => {
             const categoryVideos = filteredVideos.filter(
               (video) =>
@@ -474,7 +545,7 @@ export default function WatchPage() {
                         aria-label={`Scroll ${category} videos left`}
                         className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white transition hover:border-red-500 hover:bg-red-600"
                       >
-                        <span aria-hidden="true">←</span>
+                        ←
                       </button>
 
                       <button
@@ -483,7 +554,7 @@ export default function WatchPage() {
                         aria-label={`Scroll ${category} videos right`}
                         className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white transition hover:border-red-500 hover:bg-red-600"
                       >
-                        <span aria-hidden="true">→</span>
+                        →
                       </button>
                     </div>
                   )}
@@ -507,16 +578,25 @@ export default function WatchPage() {
               </section>
             );
           })
-        ) : (
+        )}
+
+        {/* EMPTY STATE */}
+        {!loadingVideos && !loadError && filteredVideos.length === 0 && (
           <div className="rounded-3xl border border-white/10 bg-white/[0.025] px-5 py-20 text-center">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-400">
               <SearchIcon />
             </div>
 
-            <h3 className="mt-5 text-xl font-bold">No videos found</h3>
+            <h3 className="mt-5 text-xl font-bold">
+              {libraryVideos.length === 0
+                ? "No videos available yet"
+                : "No videos found"}
+            </h3>
 
             <p className="mt-2 text-sm text-zinc-500">
-              Try a different search or select another category.
+              {libraryVideos.length === 0
+                ? "Videos added and made visible through Admin will appear here."
+                : "Try a different search or select another category."}
             </p>
 
             <button
