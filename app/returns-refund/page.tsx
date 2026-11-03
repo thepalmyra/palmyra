@@ -358,6 +358,14 @@ export default function ReturnsRefundPage() {
             >
               Go to your profile
             </Link>
+            <a
+              href="https://www.instagram.com/palmyraofficial/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-white/20 px-6 py-3 text-sm font-bold transition hover:border-white/50"
+            >
+              Contact Palmyra on Instagram
+            </a>
             <Link
               href="/shipping-policy"
               className="rounded-full border border-white/20 px-6 py-3 text-sm font-bold transition hover:border-white/50"
