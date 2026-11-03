@@ -5,12 +5,12 @@ const sections = [
   {
     number: "01",
     title: "Order processing",
-    text: "After you place an order, Palmyra begins the order verification and processing process. Processing time may vary depending on product availability, order volume and other operational factors.",
+    text: "After you place an order, Palmyra begins the order verification and processing process. Processing time may vary depending on product availability, order volume and other operational factors. Orders may enter production or fulfilment processing before dispatch.",
   },
   {
     number: "02",
     title: "Shipping and delivery",
-    text: "Delivery estimates, where available, will be displayed during checkout or communicated through your order updates. Actual delivery may vary depending on the delivery location, courier operations, weather and other circumstances.",
+    text: "Delivery estimates, where available, will be displayed during checkout or communicated through your order updates. Actual delivery may vary depending on the delivery location, courier operations, weather, public holidays and other circumstances. Delivery estimates are not guaranteed arrival dates.",
   },
   {
     number: "03",
@@ -20,40 +20,62 @@ const sections = [
   {
     number: "04",
     title: "Order tracking",
-    text: "Where tracking information is available, it will be shared through the order updates or communication channel provided by Palmyra. Tracking updates may take time to appear after dispatch.",
+    text: "Where tracking information is available, it will be shared through the order updates or communication channel provided by Palmyra. Tracking updates may take time to appear after dispatch. If tracking stops updating for an extended period, please contact Palmyra with your order number.",
   },
   {
     number: "05",
     title: "Delivery delays",
-    text: "Unexpected delays may occur due to courier operations, incorrect addresses, weather, public holidays, service interruptions or other circumstances beyond our reasonable control. We will assist with order-related enquiries where possible.",
+    text: "Unexpected delays may occur due to courier operations, incorrect addresses, weather, public holidays, service interruptions or other circumstances beyond our reasonable control. We will assist with order-related enquiries and investigate shipment concerns where possible.",
   },
   {
     number: "06",
     title: "Incorrect delivery information",
-    text: "Customers are responsible for providing a complete and accurate delivery address and reachable contact information. Please contact Palmyra as soon as possible if you notice an error. Address changes may not be possible once an order has entered processing or dispatch.",
+    text: "Customers are responsible for providing a complete and accurate delivery address and reachable contact information. Please contact Palmyra as soon as possible if you notice an error. Address changes may not be possible once an order has entered production, processing or dispatch.",
+  },
+  {
+    number: "07",
+    title: "Unsuccessful delivery",
+    text: "If a delivery attempt is unsuccessful, Palmyra will review the available delivery information and contact you where necessary. Any further delivery or return arrangements will depend on the circumstances, shipment status and applicable requirements.",
+  },
+  {
+    number: "08",
+    title: "Lost or undelivered shipments",
+    text: "If your order appears lost or has not arrived within the estimated delivery period, contact Palmyra with your order number. We will review the available tracking information and investigate with the delivery service. If a shipment is confirmed lost, we will communicate the appropriate next steps under applicable law.",
   },
 ];
 
 const faqs = [
   {
     q: "How long will my order take to arrive?",
-    a: "Delivery estimates may vary by product and location. Please check the estimated information displayed at checkout or in your order updates.",
+    a: "Delivery estimates may vary by product and location. Please check the estimated information displayed at checkout or in your order updates. Delivery estimates are not guaranteed arrival dates.",
   },
   {
     q: "Will I receive tracking information?",
-    a: "Tracking information will be shared when it is available for your shipment. Please allow time for courier tracking systems to update.",
+    a: "Tracking information will be shared when it is available for your shipment. Please allow time for courier tracking systems to update after dispatch.",
   },
   {
     q: "Can I change my delivery address?",
-    a: "Contact Palmyra as soon as possible. Address changes are subject to the order's processing and dispatch status and cannot be guaranteed.",
+    a: "Contact Palmyra as soon as possible. Address changes are subject to the order's processing, production and dispatch status and cannot be guaranteed.",
   },
   {
     q: "What if my order is delayed?",
-    a: "Please contact Palmyra with your order number. We will review the available shipment information and assist you.",
+    a: "Please contact Palmyra with your order number. We will review the available shipment information and assist you with your enquiry.",
+  },
+  {
+    q: "What if my shipment appears lost or tracking stops updating?",
+    a: "Please contact Palmyra with your order number. We will review the available tracking information and investigate with the delivery service. If the shipment is confirmed lost, we will communicate the appropriate next steps under applicable law.",
+  },
+  {
+    q: "What happens if delivery is unsuccessful?",
+    a: "If a delivery attempt is unsuccessful, Palmyra will review the available delivery information and contact you where necessary. Any further delivery or return arrangements will depend on the circumstances and applicable requirements.",
   },
   {
     q: "What if I receive a damaged or incorrect product?",
     a: "Please contact Palmyra promptly with your order details and clear photographs of the product and packaging. We will review the issue under our Returns & Refund Policy and applicable law.",
+  },
+  {
+    q: "Can I cancel my order while it is being shipped?",
+    a: "Once an order has entered production or dispatch, cancellation may no longer be possible. You can still contact Palmyra to submit a request. We will review your order status and communicate the available options under applicable law.",
   },
 ];
 
@@ -178,13 +200,15 @@ export default function ShippingPolicyPage() {
               </p>
               <p className="mt-3 text-sm leading-7 text-white/65">
                 Delivery estimates are not guaranteed arrival dates.
-                Unforeseen circumstances may affect delivery.
+                Unforeseen circumstances may affect delivery. If your order
+                appears lost or significantly delayed, please contact Palmyra
+                for assistance.
               </p>
             </div>
           </div>
 
           <div className="space-y-0">
-            {sections.map((section, index) => (
+            {sections.map((section) => (
               <article
                 key={section.number}
                 className="grid gap-4 border-b border-white/10 py-7 sm:grid-cols-[58px_1fr]"

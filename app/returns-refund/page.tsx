@@ -10,12 +10,12 @@ const steps = [
   {
     number: "02",
     title: "Request review",
-    text: "Palmyra will review the order status, product details, reason for the request and any supporting information. We may ask for additional details or photographs.",
+    text: "Palmyra will review the order status, product details, reason for the request and any supporting information. We may ask for additional details, photographs or other evidence.",
   },
   {
     number: "03",
     title: "Eligibility check",
-    text: "The available options depend on the stage of order processing, delivery status, product condition, nature of the issue and applicable consumer-protection requirements.",
+    text: "The available options depend on the stage of order processing, production or dispatch, delivery status, product condition, nature of the issue and applicable consumer-protection requirements.",
   },
   {
     number: "04",
@@ -24,34 +24,70 @@ const steps = [
   },
 ];
 
+const requestTypes = [
+  {
+    icon: "↗",
+    title: "Order cancellation",
+    desc: "For customers who wish to cancel an order. The possibility of cancellation depends on the order's current processing, production and dispatch status.",
+  },
+  {
+    icon: "↩",
+    title: "Return request",
+    desc: "For customers who want to request a product return. Eligibility depends on the reason, product condition and applicable requirements.",
+  },
+  {
+    icon: "◇",
+    title: "Damaged or defective product",
+    desc: "For products that arrive damaged, defective or with a quality issue. Supporting photographs or other evidence may be requested. An unboxing video may also help where available.",
+  },
+  {
+    icon: "✓",
+    title: "Incorrect product received",
+    desc: "For an item that does not match the product ordered. Please provide photographs and your order details for review.",
+  },
+  {
+    icon: "⌁",
+    title: "Lost or undelivered order",
+    desc: "For shipments that appear lost or have not arrived within the estimated delivery period. Palmyra will investigate the shipment.",
+  },
+];
+
 const faqs = [
   {
     q: "Can I cancel an order after placing it?",
-    a: "You may submit a cancellation request. Approval is not guaranteed. Whether cancellation is possible depends on the order's processing and fulfilment status. Please submit your request as soon as possible.",
+    a: "You may submit a cancellation request as soon as possible. Cancellation may be possible before production or fulfilment processing begins. Once production or dispatch has started, cancellation may no longer be possible. Palmyra will review your order status and communicate the outcome. Your rights under applicable law remain protected.",
   },
   {
     q: "Can I return a product if I change my mind?",
-    a: "A return for personal preference, an incorrect size selection or a change of mind is subject to review and applicable policy and law. Such requests are not automatically accepted.",
+    a: "A return for personal preference, an incorrect size selection or a change of mind is subject to review and applicable policy and law. Such requests are not automatically accepted. This does not affect any rights you may have under applicable consumer-protection law.",
   },
   {
     q: "What if my product is damaged or defective?",
-    a: "Contact Palmyra promptly after receiving the product. Provide your order number, a description of the issue and clear photographs or other supporting evidence. We will review the issue and available remedies.",
+    a: "Contact Palmyra promptly after receiving the product. Provide your order number, a description of the issue and clear photographs. An unboxing video may also help us review the claim where available. We will investigate and communicate the appropriate remedy under applicable law.",
   },
   {
     q: "What if I receive the wrong product?",
     a: "Please contact Palmyra with your order number and clear photographs showing the product received and its packaging. We will investigate and communicate the next steps.",
   },
   {
+    q: "What if my order is lost or never delivered?",
+    a: "Contact Palmyra with your order number if your shipment appears lost or has not arrived within the estimated delivery period. We will review the tracking information and investigate. If the shipment is confirmed lost, we will communicate the appropriate next steps under applicable law.",
+  },
+  {
     q: "Will every request be approved?",
-    a: "No. Submitting a request does not automatically guarantee cancellation, return, replacement or refund. Each request is reviewed individually, subject to applicable law.",
+    a: "No. Submitting a request does not automatically guarantee cancellation, return, replacement or refund. Each request is reviewed individually. However, nothing in this policy limits mandatory customer rights or remedies under applicable law.",
   },
   {
     q: "When will I receive my refund?",
-    a: "If a refund is approved, the applicable refund method and expected processing information will be communicated to you. Actual credit timing may depend on the payment provider or bank.",
+    a: "If a refund is approved or otherwise required, Palmyra will initiate it through the applicable refund method. The time taken for the amount to appear in your account may depend on your payment provider or bank.",
   },
   {
     q: "Can I request a return after delivery?",
     a: "You may contact Palmyra with your concern after delivery. Please do so promptly. The review will consider the nature of the issue, supporting evidence, applicable policy and your legal rights.",
+  },
+  {
+    q: "Do I need an unboxing video for every return request?",
+    a: "No. Clear photographs and a description of the issue can help us review a request. An unboxing video may provide additional supporting information, particularly for damage or incorrect-product claims, but the absence of a video does not automatically remove your rights under applicable law.",
   },
 ];
 
@@ -156,28 +192,7 @@ export default function ReturnsRefundPage() {
         </div>
 
         <div className="mt-9 grid gap-4 sm:grid-cols-2">
-          {[
-            {
-              icon: "↗",
-              title: "Order cancellation",
-              desc: "For customers who wish to cancel an order. The possibility of cancellation depends on the order's current processing status.",
-            },
-            {
-              icon: "↩",
-              title: "Return request",
-              desc: "For customers who want to request a product return. Eligibility depends on the reason, product condition and applicable requirements.",
-            },
-            {
-              icon: "◇",
-              title: "Damaged or defective product",
-              desc: "For products that arrive damaged, defective or with a quality issue. Supporting photographs or evidence may be requested.",
-            },
-            {
-              icon: "✓",
-              title: "Incorrect product received",
-              desc: "For an item that does not match the product ordered. Please provide photographs and your order details for review.",
-            },
-          ].map((item) => (
+          {requestTypes.map((item) => (
             <article
               key={item.title}
               className="rounded-2xl border border-white/10 bg-white/[0.035] p-6 transition hover:border-red-500/40 sm:p-8"
@@ -255,6 +270,7 @@ export default function ReturnsRefundPage() {
               "Whether you are requesting cancellation, return or replacement",
               "A clear explanation of the issue or reason",
               "Clear product and packaging photographs, where relevant",
+              "An unboxing video, if available and relevant to the issue",
             ].map((item) => (
               <li key={item} className="flex items-start gap-3">
                 <span className="mt-0.5 text-red-500">✓</span>
@@ -281,9 +297,9 @@ export default function ReturnsRefundPage() {
               remedy under the circumstances and applicable law.
             </p>
             <p>
-              Where a refund is approved, the applicable refund method and
-              processing information will be communicated to the customer.
-              The time taken for the amount to appear may depend on the
+              Where a refund is approved or otherwise required, Palmyra will
+              initiate it through the applicable refund method. The time taken
+              for the amount to appear in your account may depend on your
               payment provider or bank.
             </p>
             <p>
