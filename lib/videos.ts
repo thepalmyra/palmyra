@@ -29,7 +29,7 @@ export const homeCategories = [
     subtitle: "The game, the energy and the moments that matter.",
   },
   {
-    category: "Movies",
+    category: "Football",
     subtitle: "Stories, trailers and films worth discovering.",
   },
 ];
