@@ -41,7 +41,8 @@ export const homeCategories = [
  * Categories with videos appear in this order.
  * New categories not listed here appear alphabetically afterward.
  *
- * Category names must match the category assigned to videos below.
+ * Category names must match the categories assigned to videos
+ * through the Admin page.
  */
 export const watchCategories = [
   {
@@ -71,12 +72,14 @@ export const watchCategories = [
  * VIDEO LIBRARY
  *
  * LOCAL INTRO VIDEOS:
- * Used for the autoplaying Home and Watch banners.
+ * Permanent Palmyra banner videos.
+ * Managed only through VS Code.
  *
  * YOUTUBE VIDEOS:
- * Appear in the Watch library under their assigned category.
+ * Managed through the Admin page.
+ * Stored in the Supabase admin_youtube_videos table.
  *
- * To manage videos, add, edit, or remove entries below.
+ * Do not add Admin-managed YouTube videos here.
  */
 export const videos: VideoItem[] = [
   // PERMANENT PALMYRA INTRO VIDEOS — BANNERS ONLY
@@ -104,88 +107,21 @@ export const videos: VideoItem[] = [
     thumbnail: "/thumbnails/trending3.jpg",
     featured: true,
   },
-
-  // LIVE STREAM
-  {
-    id: "k178PJ6DfII",
-    type: "youtube",
-    title: "LIVE: Inter Kashi FC vs FC Goa | MG ISL 2026-27 | Gameweek 4",
-    description: "MG Indian Super League",
-    category: "Live Stream",
-  },
-  {
-    id: "gWexbVfNmFo",
-    type: "youtube",
-    title: "LIVE: Mumbai City FC vs Sporting Club Delhi | MG ISL 2026-27 | Gameweek 4",
-    description: "MG Indian Super League",
-    category: "Live Stream",
-  },
-  {
-    id: "nZ8rESpcRTU",
-    type: "youtube",
-    title: "LIVE: Mohun Bagan Super Giant vs Punjab FC | MG ISL 2026-27 | Gameweek 4",
-    description: "MG Indian Super League",
-    category: "Live Stream",
-  },
-  {
-    id: "raS61rqsQQI",
-    type: "youtube",
-    title: "LIVE: Chennaiyin FC vs Kerala Blasters FC | MG ISL 2026-27 | Gameweek 4",
-    description: "MG Indian Super League",
-    category: "Live Stream",
-  },
-  {
-    id: "dNbGWuWcG5Y",
-    type: "youtube",
-    title: "LIVE: NorthEast United FC vs Bengaluru FC | MG ISL 2026-27 | Gameweek 4",
-    description: "MG Indian Super League",
-    category: "Live Stream",
-  },
-  {
-    id: "Ay1gYmJoFMk",
-    type: "youtube",
-    title: "REPLAY: FC Goa vs Sporting Club Delhi | MG ISL 2026-27",
-    description: "MG Indian Super League",
-    category: "Live Stream",
-  },
-
-  // LEVELUP VIDEOS
-  {
-    id: "Qi6_A2Utqzk",
-    type: "youtube",
-    title: "ASMR Solo Training in adidas F50 Hyperfast Elite Y-3",
-    description: "7mlc",
-    category: "LevelUp",
-  },
-  {
-    id: "7oGGGR7fsF0",
-    type: "youtube",
-    title: "10 Stupidest Mistakes in Soccer",
-    description: "AllAttack",
-    category: "LevelUp",
-  },
-  {
-    id: "pCXNfq8H3Tg",
-    type: "youtube",
-    title: "20 BEST WAYS TO SHOOT A BALL",
-    description: "AllAttack",
-    category: "LevelUp",
-  },
-  {
-    id: "L8taGwfp2sU",
-    type: "youtube",
-    title: "15 BEST Skill Moves to Beat Defenders in REAL GAMES",
-    description: "AllAttack",
-    category: "LevelUp",
-  },
-
-  // ADD FUTURE VIDEOS BELOW
-  //
-  // {
-  //   id: "YOUR_YOUTUBE_VIDEO_ID",
-  //   type: "youtube",
-  //   title: "Your video title",
-  //   description: "Channel or creator name",
-  //   category: "Football",
-  // },
 ];
+
+/**
+ * YOUTUBE VIDEO SAMPLE
+ *
+ * Reference only — do not uncomment or add this to the videos array.
+ * Add YouTube videos through Admin instead.
+ *
+ * {
+ *   youtube_id: "YOUR_YOUTUBE_VIDEO_ID",
+ *   title: "Your video title",
+ *   name: "Channel or creator name",
+ *   description: "Your video description",
+ *   category: "Football",
+ *   featured: false,
+ *   is_hidden: false,
+ * }
+ */
