@@ -20,6 +20,10 @@ export type VideoItem = {
  */
 export const homeCategories = [
   {
+    category: "Featured",
+    subtitle: "Discover featured videos and highlights.",
+  },
+  {
     category: "Live Stream",
     subtitle: "Watch live events and streams as they happen.",
     liveOnly: true,
@@ -46,6 +50,10 @@ export const homeCategories = [
  */
 export const watchCategories = [
   {
+    category: "Featured",
+    subtitle: "Discover featured videos and highlights.",
+  },
+  {
     category: "Live Stream",
     subtitle: "Watch live events and streams as they happen.",
     liveOnly: true,
@@ -53,10 +61,6 @@ export const watchCategories = [
   {
     category: "LevelUp",
     subtitle: "Improve your game with training drills.",
-  },
-  {
-    category: "Featured",
-    subtitle: "Discover featured videos and highlights.",
   },
   {
     category: "Football",
