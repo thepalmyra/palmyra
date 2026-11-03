@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -14,7 +15,6 @@ type HomepageProduct = {
   image: string;
 };
 
-const videoLibrary = videos;
 const FALLBACK_THUMBNAIL = "/images/video-placeholder.jpg";
 
 function getYoutubeId(video: VideoItem): string | undefined {
@@ -102,6 +102,7 @@ function ArrowIcon({
 
 function VideoCard({ video }: { video: VideoItem }) {
   const title = video.title || "Palmyra Original";
+  const youtubeId = getYoutubeId(video);
 
   return (
     <Link
@@ -123,15 +124,15 @@ function VideoCard({ video }: { video: VideoItem }) {
               return;
             }
 
-            if (video.type === "youtube" || getYoutubeId(video)) {
+            if (youtubeId) {
               const step = Number(image.dataset.fallbackStep || "0");
 
               if (step === 0) {
                 image.dataset.fallbackStep = "1";
-                image.src = `https://img.youtube.com/vi/${getYoutubeId(video)}/hqdefault.jpg`;
+                image.src = `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
               } else if (step === 1) {
                 image.dataset.fallbackStep = "2";
-                image.src = `https://img.youtube.com/vi/${getYoutubeId(video)}/mqdefault.jpg`;
+                image.src = `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`;
               } else {
                 image.dataset.fallbackApplied = "true";
                 image.src = FALLBACK_THUMBNAIL;
@@ -173,10 +174,12 @@ function VideoCollection({
   name,
   subtitle,
   category,
+  videoLibrary,
 }: {
   name: string;
   subtitle: string;
   category: string;
+  videoLibrary: VideoItem[];
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -296,9 +299,20 @@ function VideoCollection({
 
 export default function HomePage() {
   const [products, setProducts] = useState<HomepageProduct[]>([]);
+  const [adminVideos, setAdminVideos] = useState<VideoItem[]>([]);
   const [featuredIndex, setFeaturedIndex] = useState(0);
 
-  const featuredVideos = videoLibrary.filter(
+  // Keep the local videos and add visible Admin YouTube videos.
+  const videoLibrary: VideoItem[] = [
+    ...videos,
+    ...adminVideos.filter(
+      (adminVideo) =>
+        !videos.some((localVideo) => localVideo.id === adminVideo.id)
+    ),
+  ];
+
+  // The hero continues to use only local featured videos.
+  const featuredVideos = videos.filter(
     (video) => video.type === "local" && video.featured === true
   );
 
@@ -307,6 +321,7 @@ export default function HomePage() {
       ? featuredVideos[featuredIndex % featuredVideos.length]
       : undefined;
 
+  // Load products.
   useEffect(() => {
     const supabase = createClient();
     let cancelled = false;
@@ -324,6 +339,45 @@ export default function HomePage() {
     }
 
     void loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Load visible YouTube videos managed through the Admin dashboard.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAdminVideos() {
+      try {
+        const response = await fetch("/api/videos", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Could not load Admin videos.");
+        }
+
+        const result: { videos?: VideoItem[] } = await response.json();
+
+        if (!cancelled && Array.isArray(result.videos)) {
+          setAdminVideos(
+            result.videos.filter(
+              (video) =>
+                video &&
+                typeof video.id === "string" &&
+                video.type === "youtube" &&
+                typeof video.category === "string"
+            )
+          );
+        }
+      } catch (error) {
+        console.error("Home page Admin video loading error:", error);
+      }
+    }
+
+    void loadAdminVideos();
 
     return () => {
       cancelled = true;
@@ -608,6 +662,7 @@ export default function HomePage() {
           name={item.category}
           subtitle={item.subtitle}
           category={item.category}
+          videoLibrary={videoLibrary}
         />
       ))}
 
