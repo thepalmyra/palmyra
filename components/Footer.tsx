@@ -3,8 +3,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const INSTAGRAM_URL = "https://www.instagram.com/palmyraofficial/";
+const YOUTUBE_URL = "https://www.youtube.com/@palmyraofficial";
+const FACEBOOK_URL = "https://www.facebook.com/palmyrastv";
+const X_URL = "https://x.com/guerreroisravel";
 
 const navItems = [
   {
@@ -61,6 +65,8 @@ const quickLinks = [
 const legalLinks = [
   { label: "Privacy Policy", href: "/privacy-policy" },
   { label: "Terms & Conditions", href: "/terms-and-conditions" },
+  { label: "Shipping Policy", href: "/shipping-policy" },
+  { label: "Returns & Refunds", href: "/returns-refund" },
 ];
 
 type SocialType = "instagram" | "youtube" | "facebook" | "x";
@@ -150,9 +156,46 @@ function InstagramIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+function BackToTopIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+    >
+      <path d="m6 14 6-6 6 6" />
+    </svg>
+  );
+}
+
+function FooterHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-xs font-bold uppercase tracking-[0.22em] text-white">
+      {children}
+    </h2>
+  );
+}
+
 export default function Footer() {
   const pathname = usePathname();
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const currentYear = new Date().getFullYear();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 500);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <>
@@ -160,30 +203,41 @@ export default function Footer() {
         {/* Decorative background */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-40 left-1/2 h-72 w-[min(900px,100%)] -translate-x-1/2 rounded-full bg-red-600/[0.08] blur-[100px]"
+          className="pointer-events-none absolute -top-40 left-1/2 h-80 w-[min(900px,100%)] -translate-x-1/2 rounded-full bg-red-600/[0.09] blur-[110px]"
+        />
+
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-40 -right-32 h-80 w-80 rounded-full bg-red-700/[0.07] blur-[110px]"
         />
 
         <div className="relative mx-auto max-w-7xl px-5 pb-32 pt-12 sm:px-8 sm:pb-12 sm:pt-16 lg:pt-20">
           {/* Customer support banner */}
-          <div className="mb-14 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#171111] via-[#100d0d] to-[#0b0b0b] p-5 sm:p-7 lg:mb-16 lg:p-9">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-pink-400/20 bg-pink-500/10 text-pink-400">
-                  <InstagramIcon className="h-6 w-6" />
+          <div className="group relative mb-14 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1c1111] via-[#110d0d] to-[#090909] p-5 transition duration-300 hover:border-red-500/30 sm:p-8 lg:mb-16 lg:p-10">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-red-600/10 blur-[80px] transition group-hover:bg-red-600/20"
+            />
+
+            <div className="relative flex flex-col gap-7 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-4 sm:gap-5">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-pink-400/20 bg-pink-500/10 text-pink-400 transition group-hover:scale-105">
+                  <InstagramIcon className="h-7 w-7" />
                 </div>
 
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-red-400">
-                    We&apos;re here to help
+                  <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-red-400">
+                    PALMYRA CUSTOMER CARE
                   </p>
 
-                  <h2 className="mt-2 text-xl font-bold tracking-tight sm:text-2xl">
-                    Need customer support?
+                  <h2 className="mt-2 text-xl font-bold tracking-tight sm:text-2xl lg:text-3xl">
+                    We're here to help.
                   </h2>
 
-                  <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">
-                    Questions about your order or products? Message Palmyra
-                    through our Instagram profile for customer assistance.
+                  <p className="mt-3 max-w-xl text-sm leading-7 text-zinc-400">
+                    Questions about an order, delivery, product or return?
+                    Connect with Palmyra through our official Instagram
+                    profile.
                   </p>
 
                   <p className="mt-3 text-sm font-semibold text-zinc-200">
@@ -197,7 +251,7 @@ export default function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Message Palmyra customer care on Instagram"
-                className="group inline-flex min-h-12 shrink-0 items-center justify-center gap-3 rounded-xl bg-red-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-red-950/20 transition hover:bg-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#100d0d]"
+                className="group/button inline-flex min-h-12 shrink-0 items-center justify-center gap-3 rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-red-950/30 transition hover:-translate-y-0.5 hover:bg-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#100d0d]"
               >
                 <InstagramIcon className="h-5 w-5" />
                 Message us on Instagram
@@ -207,7 +261,7 @@ export default function Footer() {
           </div>
 
           {/* Main footer columns */}
-          <div className="grid gap-11 sm:grid-cols-2 lg:grid-cols-[1.4fr_0.8fr_0.8fr_1fr] lg:gap-12">
+          <div className="grid gap-11 sm:grid-cols-2 lg:grid-cols-[1.4fr_0.8fr_1fr_1fr] lg:gap-12">
             {/* Brand */}
             <div>
               <Link
@@ -215,7 +269,7 @@ export default function Footer() {
                 aria-label="Palmyra home"
                 className="group inline-flex items-center gap-3 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
               >
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/30 bg-gradient-to-br from-red-500/20 to-red-950/20 text-2xl font-black text-red-400 transition group-hover:border-red-400/60">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-500/30 bg-gradient-to-br from-red-500/20 to-red-950/20 text-2xl font-black text-red-400 transition group-hover:scale-105 group-hover:border-red-400/60">
                   P
                 </span>
 
@@ -236,22 +290,25 @@ export default function Footer() {
                 Explore the store
                 <ArrowIcon />
               </Link>
+
+              <div className="mt-7 flex items-center gap-2 text-xs text-zinc-500">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                Made for the Palmyra community
+              </div>
             </div>
 
             {/* Explore */}
             <div>
-              <h2 className="text-xs font-bold uppercase tracking-[0.22em] text-white">
-                Explore
-              </h2>
+              <FooterHeading>Explore</FooterHeading>
 
-              <ul className="mt-5 space-y-4">
+              <ul className="mt-6 space-y-4">
                 {quickLinks.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="inline-flex text-sm text-zinc-400 transition-colors hover:text-white focus:outline-none focus-visible:text-white"
+                      className="inline-flex items-center gap-2 text-sm text-zinc-400 transition hover:translate-x-1 hover:text-white focus:outline-none focus-visible:text-white"
                     >
-                      {link.label}
+                      <span>{link.label}</span>
                     </Link>
                   </li>
                 ))}
@@ -260,18 +317,19 @@ export default function Footer() {
 
             {/* Information */}
             <div>
-              <h2 className="text-xs font-bold uppercase tracking-[0.22em] text-white">
-                Information
-              </h2>
+              <FooterHeading>Information</FooterHeading>
 
-              <ul className="mt-5 space-y-4">
+              <ul className="mt-6 space-y-4">
                 {legalLinks.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="inline-flex text-sm text-zinc-400 transition-colors hover:text-white focus:outline-none focus-visible:text-white"
+                      className="group/link inline-flex items-center gap-2 text-sm text-zinc-400 transition hover:translate-x-1 hover:text-red-400 focus:outline-none focus-visible:text-red-400"
                     >
-                      {link.label}
+                      <span>{link.label}</span>
+                      <span className="text-red-500 opacity-0 transition group-hover/link:opacity-100">
+                        →
+                      </span>
                     </Link>
                   </li>
                 ))}
@@ -280,7 +338,7 @@ export default function Footer() {
                     href={INSTAGRAM_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-pink-400 focus:outline-none focus-visible:text-pink-400"
+                    className="inline-flex items-center gap-2 text-sm text-zinc-400 transition hover:text-pink-400 focus:outline-none focus-visible:text-pink-400"
                   >
                     Contact Support
                     <ExternalLinkIcon />
@@ -291,12 +349,10 @@ export default function Footer() {
 
             {/* Social links */}
             <div>
-              <h2 className="text-xs font-bold uppercase tracking-[0.22em] text-white">
-                Follow Palmyra
-              </h2>
+              <FooterHeading>Follow Palmyra</FooterHeading>
 
-              <p className="mt-5 text-sm leading-6 text-zinc-400">
-                Follow our channels for updates, announcements, and new drops.
+              <p className="mt-6 text-sm leading-7 text-zinc-400">
+                Follow our channels for updates, announcements and new drops.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3">
@@ -305,17 +361,17 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Palmyra on Instagram"
-                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:-translate-y-0.5 hover:border-pink-500/40 hover:bg-pink-500/10 hover:text-pink-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:-translate-y-1 hover:border-pink-500/40 hover:bg-pink-500/10 hover:text-pink-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
                 >
                   <InstagramIcon />
                 </a>
 
                 <a
-                  href="https://www.youtube.com/@palmyraofficial"
+                  href={YOUTUBE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Palmyra on YouTube"
-                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:-translate-y-0.5 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:-translate-y-1 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -332,11 +388,11 @@ export default function Footer() {
                 </a>
 
                 <a
-                  href="https://www.facebook.com/palmyrastv"
+                  href={FACEBOOK_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Palmyra on Facebook"
-                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:-translate-y-0.5 hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:-translate-y-1 hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -349,11 +405,11 @@ export default function Footer() {
                 </a>
 
                 <a
-                  href="https://x.com/guerreroisravel"
+                  href={X_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Palmyra on X"
-                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:-translate-y-1 hover:border-white/30 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -370,7 +426,7 @@ export default function Footer() {
                 href={INSTAGRAM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-zinc-300 transition hover:text-pink-400"
+                className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-zinc-300 transition hover:text-pink-400"
               >
                 <InstagramIcon className="h-4 w-4" />
                 Customer care via Instagram DM
@@ -378,8 +434,32 @@ export default function Footer() {
             </div>
           </div>
 
+          {/* Trust / policy strip */}
+          <div className="mt-14 grid gap-3 border-y border-white/[0.08] py-6 sm:grid-cols-3">
+            <div className="flex items-center gap-3 text-xs text-zinc-400">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-red-400">
+                ✓
+              </span>
+              <span>Secure checkout</span>
+            </div>
+
+            <div className="flex items-center gap-3 text-xs text-zinc-400">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-red-400">
+                ↗
+              </span>
+              <span>Order and delivery updates</span>
+            </div>
+
+            <div className="flex items-center gap-3 text-xs text-zinc-400">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-red-400">
+                ◇
+              </span>
+              <span>Customer support</span>
+            </div>
+          </div>
+
           {/* Bottom footer bar */}
-          <div className="mt-12 flex flex-col gap-4 border-t border-white/[0.09] pt-6 sm:mt-16 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-7 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-center text-xs leading-6 text-zinc-500 sm:text-left">
               © {currentYear} Palmyra by Assist Network Ltd. All rights
               reserved.
@@ -400,19 +480,35 @@ export default function Footer() {
                 Terms
               </Link>
 
-              <a
-                href={INSTAGRAM_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-zinc-500 transition hover:text-pink-400 focus:outline-none focus-visible:text-pink-400"
+              <Link
+                href="/shipping-policy"
+                className="text-xs text-zinc-500 transition hover:text-white focus:outline-none focus-visible:text-white"
               >
-                <InstagramIcon className="h-3.5 w-3.5" />
-                Customer Care
-              </a>
+                Shipping
+              </Link>
+
+              <Link
+                href="/returns-refund"
+                className="text-xs text-zinc-500 transition hover:text-white focus:outline-none focus-visible:text-white"
+              >
+                Returns
+              </Link>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Back to top */}
+      {showBackToTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Back to top"
+          className="fixed bottom-24 right-5 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-[#171111]/95 text-white shadow-xl backdrop-blur transition hover:-translate-y-1 hover:border-red-500/50 hover:bg-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 sm:bottom-7 sm:right-7"
+        >
+          <BackToTopIcon />
+        </button>
+      )}
 
       {/* Fixed mobile bottom navigation */}
       <nav
