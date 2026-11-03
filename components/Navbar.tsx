@@ -2,18 +2,171 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import type { User } from "@supabase/supabase-js";
 import { useCart } from "@/components/CartContext";
 import { createClient } from "@/lib/supabase/client";
 
+const mainLinks = [
+  { label: "Home", href: "/" },
+  { label: "Watch", href: "/watch" },
+  { label: "Store", href: "/store" },
+  { label: "Cart", href: "/cart" },
+];
+
+const secondaryLinks = [
+  { label: "About Palmyra", href: "/about" },
+  { label: "Privacy Policy", href: "/privacy-policy" },
+  { label: "Terms & Conditions", href: "/terms-and-conditions" },
+  { label: "Shipping Policy", href: "/shipping-policy" },
+  { label: "Returns & Refunds", href: "/returns-refund" },
+];
+
+function SearchIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <circle cx="10.8" cy="10.8" r="6.8" />
+      <path d="m16 16 4.5 4.5" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      className="h-6 w-6"
+    >
+      <path d="m6 6 12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      className="h-6 w-6"
+    >
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
+function CartIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-6 w-6"
+    >
+      <path d="M3 4h2l2.2 11a2 2 0 0 0 2 1.6h8.5a2 2 0 0 0 1.9-1.5L22 8H6" />
+      <circle cx="10" cy="21" r="1" />
+      <circle cx="18" cy="21" r="1" />
+    </svg>
+  );
+}
+
+function UserIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+    >
+      <path d="m7 10 5 5 5-5" />
+    </svg>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1"
+    >
+      <path d="M5 12h14" />
+      <path d="m13 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+function isActivePath(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export default function Navbar() {
+  const pathname = usePathname();
+  const router = useRouter();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { items, ready } = useCart();
 
@@ -28,6 +181,7 @@ export default function Navbar() {
     user?.email?.split("@")[0] ||
     "My Profile";
 
+  // Supabase authentication
   useEffect(() => {
     const supabase = createClient();
     let active = true;
@@ -58,6 +212,7 @@ export default function Navbar() {
     };
   }, []);
 
+  // Close menu and search on Escape
   useEffect(() => {
     if (!menuOpen && !searchOpen) return;
 
@@ -75,8 +230,30 @@ export default function Navbar() {
     };
   }, [menuOpen, searchOpen]);
 
+  // Focus search input when opened
+  useEffect(() => {
+    if (searchOpen) {
+      const timer = window.setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+
+      return () => window.clearTimeout(timer);
+    }
+  }, [searchOpen]);
+
+  // Close overlays after navigation
+  useEffect(() => {
+    setMenuOpen(false);
+    setSearchOpen(false);
+  }, [pathname]);
+
   function closeMenu() {
     setMenuOpen(false);
+  }
+
+  function toggleSearch() {
+    setMenuOpen(false);
+    setSearchOpen((open) => !open);
   }
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
@@ -84,12 +261,15 @@ export default function Navbar() {
 
     const query = search.trim();
 
-    if (!query) return;
+    if (!query) {
+      searchInputRef.current?.focus();
+      return;
+    }
 
     setSearchOpen(false);
     setMenuOpen(false);
 
-    window.location.href = `/search?q=${encodeURIComponent(query)}`;
+    router.push(`/search?q=${encodeURIComponent(query)}`);
   }
 
   async function handleSignOut() {
@@ -108,7 +288,8 @@ export default function Navbar() {
 
       setUser(null);
       setMenuOpen(false);
-      window.location.href = "/";
+      router.push("/");
+      router.refresh();
     } catch {
       window.alert("Unable to sign out. Please try again.");
     } finally {
@@ -116,22 +297,15 @@ export default function Navbar() {
     }
   }
 
-  const mainLinks = [
-    { label: "Home", href: "/" },
-    { label: "Watch", href: "/watch" },
-    { label: "Store", href: "/store" },
-    { label: "Cart", href: "/cart" },
-  ];
-
-  const secondaryLinks = [
-    { label: "About Palmyra", href: "/about" },
-    { label: "Privacy Policy", href: "/privacy-policy" },
-    { label: "Terms & Conditions", href: "/terms-and-conditions" },
+  const searchSuggestions = [
+    { label: "Watch videos", href: "/watch" },
+    { label: "Explore products", href: "/store" },
+    { label: "My profile", href: "/profile" },
   ];
 
   return (
     <>
-      {/* STICKY PREMIUM TOP BAR */}
+      {/* PREMIUM STICKY NAVBAR */}
       <header className="sticky top-0 z-50 w-full border-b border-white/[0.09] bg-black/95 text-white shadow-xl shadow-black/20 backdrop-blur-2xl">
         <nav
           aria-label="Main navigation"
@@ -140,25 +314,19 @@ export default function Navbar() {
           {/* MENU BUTTON */}
           <button
             type="button"
-            onClick={() => setMenuOpen(true)}
+            onClick={() => {
+              setSearchOpen(false);
+              setMenuOpen(true);
+            }}
             aria-label="Open navigation menu"
             aria-expanded={menuOpen}
             aria-controls="palmyra-side-menu"
             className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-transparent transition duration-200 hover:border-white/10 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
           >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-6 w-6 transition-transform duration-200 group-hover:scale-105"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-            >
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
+            <MenuIcon />
           </button>
 
-          {/* CENTERED BRAND */}
+          {/* CENTER BRAND */}
           <Link
             href="/"
             aria-label="Palmyra Home"
@@ -171,106 +339,62 @@ export default function Navbar() {
             />
 
             <span className="truncate text-lg font-black tracking-[0.07em] text-white sm:text-2xl sm:tracking-[0.1em]">
-              PALMYRA
+              PALMYRA<span className="text-red-500">.</span>
             </span>
           </Link>
 
-          {/* RIGHT SIDE ACTIONS */}
+          {/* RIGHT ACTIONS */}
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-            {/* DESKTOP ACCOUNT ACTIONS */}
+            {/* DESKTOP LOGIN */}
             {!authLoading && !user && (
               <div className="hidden items-center gap-2 sm:flex">
                 <Link
                   href="/login"
-                  className="rounded-full px-4 py-2.5 text-sm font-semibold text-zinc-300 transition duration-200 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                  className="rounded-full px-4 py-2.5 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                 >
                   Login
                 </Link>
 
                 <Link
                   href="/register"
-                  className="rounded-full border border-red-500/30 bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-950/20 transition duration-200 hover:border-red-400 hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                  className="rounded-full border border-red-500/30 bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-950/20 transition hover:border-red-400 hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                 >
                   Register
                 </Link>
               </div>
             )}
 
+            {/* DESKTOP PROFILE */}
             {!authLoading && user && (
               <Link
                 href="/profile"
                 aria-label="Open your profile"
-                className="hidden max-w-48 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 transition duration-200 hover:border-red-500/50 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:flex"
+                className="hidden max-w-48 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 transition hover:border-red-500/50 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:flex"
               >
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-600/15 text-red-400">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="8" r="4" />
-                    <path d="M4 21a8 8 0 0 1 16 0" />
-                  </svg>
+                  <UserIcon className="h-4 w-4" />
                 </span>
 
                 <span className="max-w-32 truncate text-sm font-semibold">
                   {memberName}
                 </span>
 
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4 shrink-0 text-zinc-500"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m7 10 5 5 5-5" />
-                </svg>
+                <ChevronIcon />
               </Link>
             )}
 
-            {/* SEARCH BUTTON */}
+            {/* SEARCH */}
             <button
               type="button"
-              onClick={() => setSearchOpen((open) => !open)}
+              onClick={toggleSearch}
               aria-label={searchOpen ? "Close search" : "Open search"}
               aria-expanded={searchOpen}
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-transparent transition duration-200 hover:border-white/10 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-transparent transition hover:border-white/10 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
             >
-              {searchOpen ? (
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-6 w-6"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                >
-                  <path d="m6 6 12 12M18 6 6 18" />
-                </svg>
-              ) : (
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-6 w-6"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="10.8" cy="10.8" r="6.8" />
-                  <path d="m16 16 4.5 4.5" />
-                </svg>
-              )}
+              {searchOpen ? <CloseIcon /> : <SearchIcon className="h-6 w-6" />}
             </button>
 
-            {/* SHOPPING CART */}
+            {/* CART */}
             <Link
               href="/cart"
               aria-label={
@@ -278,21 +402,9 @@ export default function Navbar() {
                   ? `Shopping cart, ${cartCount} items`
                   : "Shopping cart"
               }
-              className="relative flex h-11 w-11 items-center justify-center rounded-full border border-transparent transition duration-200 hover:border-white/10 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+              className="relative flex h-11 w-11 items-center justify-center rounded-full border border-transparent transition hover:border-white/10 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 4h2l2.2 11a2 2 0 0 0 2 1.6h8.5a2 2 0 0 0 1.9-1.5L22 8H6" />
-                <circle cx="10" cy="21" r="1" />
-                <circle cx="18" cy="21" r="1" />
-              </svg>
+              <CartIcon />
 
               {ready && cartCount > 0 && (
                 <span className="absolute right-0 top-0 flex h-[19px] min-w-[19px] items-center justify-center rounded-full border-2 border-black bg-red-600 px-1 text-[10px] font-extrabold leading-none text-white">
@@ -303,9 +415,9 @@ export default function Navbar() {
           </div>
         </nav>
 
-        {/* EXPANDABLE SEARCH */}
+        {/* SEARCH PANEL */}
         {searchOpen && (
-          <div className="border-t border-white/[0.08] bg-zinc-950/95 px-3 py-5 sm:px-6">
+          <div className="animate-in fade-in slide-in-from-top-2 border-t border-white/[0.08] bg-zinc-950/95 px-3 py-5 duration-200 sm:px-6">
             <form
               onSubmit={handleSearch}
               role="search"
@@ -320,22 +432,11 @@ export default function Navbar() {
 
               <div className="flex gap-2">
                 <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 transition focus-within:border-red-500/70 sm:px-4">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5 shrink-0 text-zinc-500"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="10.8" cy="10.8" r="6.8" />
-                    <path d="m16 16 4.5 4.5" />
-                  </svg>
+                  <SearchIcon className="h-5 w-5 shrink-0 text-zinc-500" />
 
                   <input
+                    ref={searchInputRef}
                     id="palmyra-navbar-search"
-                    autoFocus
                     type="search"
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
@@ -351,12 +452,29 @@ export default function Navbar() {
                   Search
                 </button>
               </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span className="mr-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
+                  Quick links
+                </span>
+
+                {searchSuggestions.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setSearchOpen(false)}
+                    className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-zinc-400 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
             </form>
           </div>
         )}
       </header>
 
-      {/* MOBILE MENU BACKDROP */}
+      {/* MENU BACKDROP */}
       {menuOpen && (
         <button
           type="button"
@@ -372,15 +490,16 @@ export default function Navbar() {
         aria-label="Palmyra navigation menu"
         aria-hidden={!menuOpen}
         inert={!menuOpen}
-        className={`fixed left-0 top-0 z-[70] flex h-dvh w-[310px] max-w-[88vw] flex-col border-r border-white/10 bg-[#090909] text-white shadow-2xl shadow-black/60 transition-transform duration-300 ease-out ${
+        className={`fixed left-0 top-0 z-[70] flex h-dvh w-[330px] max-w-[88vw] flex-col border-r border-white/10 bg-[#090909] text-white shadow-2xl shadow-black/60 transition-transform duration-300 ease-out ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* DRAWER BRAND HEADER */}
+        {/* DRAWER HEADER */}
         <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-5">
           <Link
             href="/"
             onClick={closeMenu}
+            tabIndex={menuOpen ? 0 : -1}
             className="flex items-center gap-3"
           >
             <img
@@ -391,7 +510,7 @@ export default function Navbar() {
 
             <div>
               <p className="text-lg font-black tracking-[0.08em]">
-                PALMYRA
+                PALMYRA<span className="text-red-500">.</span>
               </p>
               <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
                 Your world. Your passion.
@@ -404,9 +523,9 @@ export default function Navbar() {
             onClick={closeMenu}
             aria-label="Close navigation menu"
             tabIndex={menuOpen ? 0 : -1}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-2xl text-zinc-400 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
           >
-            ×
+            <CloseIcon />
           </button>
         </div>
 
@@ -418,21 +537,10 @@ export default function Navbar() {
               <div className="mt-3 h-3 w-40 animate-pulse rounded bg-white/[0.06]" />
             </div>
           ) : user ? (
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-transparent p-4">
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-red-950/30 via-white/[0.04] to-transparent p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-red-500/25 bg-red-600/15 text-red-400">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-6 w-6"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="8" r="4" />
-                    <path d="M4 21a8 8 0 0 1 16 0" />
-                  </svg>
+                  <UserIcon className="h-6 w-6" />
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -455,7 +563,7 @@ export default function Navbar() {
                 className="mt-4 flex items-center justify-between rounded-xl bg-red-600 px-4 py-3 text-sm font-bold transition hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
               >
                 My Profile
-                <span aria-hidden="true">→</span>
+                <ArrowIcon />
               </Link>
 
               <Link
@@ -465,9 +573,7 @@ export default function Navbar() {
                 className="mt-2 flex items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
               >
                 My Orders
-                <span aria-hidden="true" className="text-zinc-500">
-                  →
-                </span>
+                <ArrowIcon />
               </Link>
 
               <button
@@ -508,51 +614,69 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* MAIN NAVIGATION */}
+        {/* NAVIGATION LINKS */}
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-4 py-5">
           <p className="mb-2 px-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600">
             Explore
           </p>
 
-          {mainLinks.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              tabIndex={menuOpen ? 0 : -1}
-              onClick={closeMenu}
-              className="group flex items-center justify-between rounded-xl border border-transparent px-4 py-3.5 text-sm font-medium text-zinc-300 transition duration-200 hover:border-white/[0.06] hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-            >
-              <span>{item.label}</span>
+          {mainLinks.map((item) => {
+            const active = isActivePath(pathname, item.href);
 
-              {item.label === "Cart" && ready && cartCount > 0 ? (
-                <span className="rounded-full border border-red-500/20 bg-red-600/10 px-2.5 py-1 text-xs font-bold text-red-400">
-                  {cartCount > 99 ? "99+" : cartCount}
-                </span>
-              ) : (
-                <span className="text-zinc-700 transition group-hover:translate-x-0.5 group-hover:text-red-400">
-                  →
-                </span>
-              )}
-            </Link>
-          ))}
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                tabIndex={menuOpen ? 0 : -1}
+                onClick={closeMenu}
+                aria-current={active ? "page" : undefined}
+                className={`group flex items-center justify-between rounded-xl border px-4 py-3.5 text-sm font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 ${
+                  active
+                    ? "border-red-500/20 bg-red-500/[0.08] text-red-400"
+                    : "border-transparent text-zinc-300 hover:border-white/[0.06] hover:bg-white/[0.04] hover:text-white"
+                }`}
+              >
+                <span>{item.label}</span>
+
+                {item.label === "Cart" && ready && cartCount > 0 ? (
+                  <span className="rounded-full border border-red-500/20 bg-red-600/10 px-2.5 py-1 text-xs font-bold text-red-400">
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
+                ) : (
+                  <span className="text-zinc-700 transition group-hover:translate-x-0.5 group-hover:text-red-400">
+                    →
+                  </span>
+                )}
+              </Link>
+            );
+          })}
 
           <div className="my-4 border-t border-white/[0.08]" />
 
           <p className="mb-2 px-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600">
-            Information
+            Information & Policies
           </p>
 
-          {secondaryLinks.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              tabIndex={menuOpen ? 0 : -1}
-              onClick={closeMenu}
-              className="rounded-xl px-4 py-3 text-sm text-zinc-500 transition hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {secondaryLinks.map((item) => {
+            const active = isActivePath(pathname, item.href);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                tabIndex={menuOpen ? 0 : -1}
+                onClick={closeMenu}
+                aria-current={active ? "page" : undefined}
+                className={`rounded-xl px-4 py-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 ${
+                  active
+                    ? "bg-red-500/[0.08] text-red-400"
+                    : "text-zinc-500 hover:bg-white/[0.04] hover:text-white"
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* DRAWER FOOTER */}
@@ -564,7 +688,7 @@ export default function Navbar() {
             </p>
           </div>
           <p className="mt-2 text-[11px] text-zinc-700">
-            © 2026 Palmyra. All rights reserved.
+            © {new Date().getFullYear()} Palmyra. All rights reserved.
           </p>
         </div>
       </aside>
